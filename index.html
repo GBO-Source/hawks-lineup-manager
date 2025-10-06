@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Hawks 503 Lineup Manager</title>
+    <title>Hawks 503 Lineup Manager (Local Storage)</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@100..900&display=swap');
@@ -51,26 +51,26 @@
 <body class="p-4 md:p-8">
 
     <header class="mb-8">
-        <h1 class="text-4xl font-extrabold text-gray-900 mb-2">Hawks 503 Lineup Manager 🏒</h1>
-        <p class="text-lg text-gray-600">Build your lines using Name, Number, and Shot (LH/RH).</p>
+        <h1 class="text-4xl font-extrabold text-gray-900 mb-2">Hawks 503 Lineup Manager 🏒 (Local)</h1>
+        <p class="text-lg text-gray-600">Build your lines using Name, Number, and Shot (LH/RH). Data is saved in your browser.</p>
     </header>
 
     <section class="bg-white p-6 rounded-xl shadow-lg mb-8">
         <h2 class="text-2xl font-semibold text-gray-800 mb-4">Game & Roster Setup</h2>
 
         <div id="auth-info" class="text-sm text-gray-500 mb-4 flex justify-between items-center">
-            <span id="user-id-display" class="font-medium text-red-500">Initialization Failed. Loading Default.</span>
-            <span id="app-id-display"></span>
+            <span id="storage-info" class="font-medium text-gray-500">Data is saved locally in your browser's Local Storage.</span>
+            <span id="app-id-display">App Mode: Client-Side (No Backend)</span>
         </div>
 
         <div class="mb-4 flex flex-col md:flex-row md:items-center space-y-2 md:space-y-0 md:space-x-4">
-            <label for="game-selector" class="font-medium text-gray-700">Load/New Game:</label>
+            <label for="game-selector" class="font-medium text-gray-700">Load/New Lineup:</label>
             <select id="game-selector" class="flex-grow p-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"></select>
             <button onclick="createNewGame()" class="bg-green-600 text-white p-2 rounded-lg hover:bg-green-700 transition duration-150 shadow-md whitespace-nowrap">
                 <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 inline mr-1" viewBox="0 0 20 20" fill="currentColor">
                     <path fill-rule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clip-rule="evenodd" />
                 </svg>
-                New Game
+                New Lineup
             </button>
             <button onclick="saveGame()" class="bg-blue-600 text-white p-2 rounded-lg hover:bg-blue-700 transition duration-150 shadow-md">
                 <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 inline mr-1" viewBox="0 0 20 20" fill="currentColor">
@@ -84,7 +84,7 @@
         <div class="mt-6">
             <label for="csv-input" class="block font-medium text-gray-700 mb-1">Roster Data (Edit and click "Load Roster" to update):</label>
             <textarea id="csv-input" rows="8" placeholder="Example:&#10;Name,Number,Shot&#10;Connor McDavid,97,RH&#10;Leon Draisaitl,29,LH&#10;..." class="w-full p-3 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500 text-sm"></textarea>
-            <button onclick="loadRosterData()" class="mt-2 bg-indigo-600 text-white p-2 rounded-lg hover:bg-indigo-700 transition duration-150 shadow-md w-full">Load Roster</button>
+            <button onclick="loadRosterData()" class="mt-2 bg-indigo-600 text-white p-2 rounded-lg hover:bg-indigo-700 transition duration-150 shadow-md w-full">Load Roster (from text or URL)</button>
         </div>
     </section>
 
@@ -138,42 +138,37 @@
     </div>
 
     <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, doc, setDoc, onSnapshot, collection, query } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
-        import { setLogLevel } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
-
-        // Set Firebase logging level to Debug
-        setLogLevel('Debug');
-
         // --- CONFIGURATION & Roster Data Source ---
         // The link provided by the user for the published Google Sheet CSV
         const GOOGLE_SHEET_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vS4nukvK7D-Q__ZKwqPbzflUAl0NOPjvad3PN-FAU_P79fnscTZmfaYhwgoIqf8AWCPTl6tVN6UYx2J/pub?gid=1943714911&single=true&output=csv';
+        const LOCAL_STORAGE_KEY = 'hawks503LineupManager';
 
         // Default roster data in CSV format used as a fallback
         const DEFAULT_ROSTER_CSV = `
 Name,Number,Shot
-Default Player 1,1,RH
-Default Player 2,2,LH
-Goalie Default,30,LH
+Connor McDavid,97,RH
+Leon Draisaitl,29,LH
+Ryan Nugent-Hopkins,93,LH
+Evander Kane,91,LH
+Zach Hyman,18,RH
+Mattias Ekholm,14,LH
+Evan Bouchard,2,RH
+Darnell Nurse,25,LH
+Cody Ceci,5,RH
+Stuart Skinner,74,RH (G)
+Jack Campbell,36,LH (G)
 `;
         
         // --- GLOBAL VARIABLES & DEFAULT DATA ---
 
         // State Management
-        let app;
-        let db;
-        let auth;
-        let userId = 'anon';
-        let isAuthReady = false;
-
         let currentGameId = null;
         let allGames = []; // List of all saved games
         let masterRoster = []; // All players from CSV
         let availableRoster = []; // Players not currently in the lineup
         
         // Define lineup structure using role identifiers (not strict positions)
-        let currentLineup = {
+        const getEmptyLineup = () => ({
             forwards: Array(4).fill(null).map(() => ([
                 {role: 'Left Forward', roleId: 'LF', player: null},
                 {role: 'Center Forward', roleId: 'CF', player: null},
@@ -184,7 +179,9 @@ Goalie Default,30,LH
                 {role: 'Right Defense', roleId: 'RD', player: null}
             ])),
             goalie: {role: 'Goalie', roleId: 'G', player: null}
-        };
+        });
+
+        let currentLineup = getEmptyLineup();
 
         // DOM elements
         const rosterListEl = document.getElementById('roster-list');
@@ -223,149 +220,47 @@ Goalie Default,30,LH
             document.getElementById('message-modal').classList.remove('flex');
         };
 
-        // --- FIREBASE INITIALIZATION & AUTH (CORRECTED WITH DEBUGGING) ---
+        // --- LOCAL STORAGE MANAGEMENT ---
 
         /**
-         * Initializes Firebase and sets up authentication listener.
+         * Loads all saved games from Local Storage.
          */
-        const initializeFirebase = async () => {
-            let firebaseConfig = null;
-            let appId = 'default-app-id'; 
-            let initialAuthToken = null;
-            let failureReason = "Unknown initialization failure.";
-
+        const loadAllGamesFromLocalStorage = () => {
             try {
-                // DEBUG INFO: Check for and parse the Firebase config global variable
-                if (typeof __firebase_config !== 'undefined' && __firebase_config) {
-                    firebaseConfig = JSON.parse(__firebase_config);
-                    appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
-                    console.log("DEBUG INFO: __firebase_config found and parsed successfully.");
+                const storedData = localStorage.getItem(LOCAL_STORAGE_KEY);
+                if (storedData) {
+                    allGames = JSON.parse(storedData);
+                    console.log("Loaded all game templates from Local Storage:", allGames.length);
                 } else {
-                    failureReason = "The required '__firebase_config' is missing or empty in the environment.";
-                    console.error("FIREBASE ERROR:", failureReason);
-                    throw new Error("Missing Firebase configuration.");
+                    allGames = [];
                 }
-
-                // DEBUG INFO: Check for the initial auth token global variable
-                if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
-                    initialAuthToken = __initial_auth_token;
-                    console.log("DEBUG INFO: __initial_auth_token found and will be used.");
-                } else {
-                    console.warn("DEBUG INFO: __initial_auth_token is missing. Falling back to anonymous sign-in.");
-                }
-
-                // 2. Initialize Firebase services
-                app = initializeApp(firebaseConfig);
-                db = getFirestore(app);
-                auth = getAuth(app);
-                
-                document.getElementById('app-id-display').textContent = `App ID: ${appId} (Public Data)`;
-
-                // 3. Handle Authentication
-                if (initialAuthToken) {
-                    try {
-                        await signInWithCustomToken(auth, initialAuthToken);
-                        console.log("DEBUG INFO: Signed in successfully with custom token.");
-                    } catch (error) {
-                        failureReason = `Custom token sign-in failed. Error: ${error.message}`;
-                        console.error("FIREBASE ERROR: Custom token failure. Attempting anonymous sign-in.", error);
-                        await signInAnonymously(auth);
-                    }
-                } else {
-                    await signInAnonymously(auth);
-                }
-                
-                // 4. Auth State Change Listener (Sets userId and isAuthReady)
-                onAuthStateChanged(auth, (user) => {
-                    if (user) {
-                        userId = user.uid;
-                        document.getElementById('user-id-display').textContent = `User ID: ${userId.substring(0, 8)}...`;
-                    } else {
-                        // Fallback user ID if sign-in failed or user signed out
-                        userId = crypto.randomUUID();
-                        document.getElementById('user-id-display').textContent = `User ID: anon (${userId.substring(0, 4)}...)`;
-                    }
-                    isAuthReady = true;
-                    document.getElementById('user-id-display').classList.remove('text-red-500');
-                    document.getElementById('user-id-display').classList.add('text-gray-500');
-                    console.log("DEBUG INFO: Auth state ready. User ID:", userId);
-                    // Start listeners only after auth is confirmed ready
-                    setupGameListener(appId);
-                });
-
-            } catch (error) {
-                // This catch handles errors before the onAuthStateChanged listener starts (usually config parsing)
-                console.error("FATAL FIREBASE SETUP ERROR:", error.message, error);
-                document.getElementById('user-id-display').textContent = `ERROR: ${failureReason}`;
-                showModal("Firebase Error", `Failed to initialize Firebase. Reason: ${failureReason}. Check console for details. Loading default roster.`);
-                loadRosterData(true);
+            } catch (e) {
+                console.error("Error loading from local storage:", e);
+                allGames = [];
             }
         };
 
-        // --- GAME DATA MANAGEMENT (FIRESTORE) ---
-
         /**
-         * Gets the collection reference for public game data.
-         * @param {string} appId - The application ID.
+         * Saves the current list of all game templates to Local Storage.
          */
-        const getGamesCollectionRef = (appId) => {
-            // Public data path: /artifacts/{appId}/public/data/hockey_lineups_shot
-            return collection(db, `artifacts/${appId}/public/data/hockey_lineups_shot`);
-        };
-
-        /**
-         * Sets up the real-time listener for all saved games.
-         * @param {string} appId - The application ID.
-         */
-        const setupGameListener = (appId) => {
-            if (!isAuthReady || !db) {
-                if (masterRoster.length === 0) {
-                    loadRosterData(true);
-                }
-                return;
+        const saveAllGamesToLocalStorage = () => {
+            try {
+                localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(allGames));
+            } catch (e) {
+                console.error("Error saving to local storage:", e);
+                showModal("Storage Error", "Failed to save the lineup data to your browser. Your browser might be in private/incognito mode.");
             }
-
-            const gamesQuery = query(getGamesCollectionRef(appId));
-
-            onSnapshot(gamesQuery, (snapshot) => {
-                allGames = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-                renderGameSelector();
-                console.log("Loaded all game templates:", allGames.length);
-                if (allGames.length > 0) {
-                    // Load the first saved game or the currently selected one
-                    if (!currentGameId || !allGames.some(g => g.id === currentGameId)) {
-                        selectGame(allGames[0].id);
-                    } else {
-                        selectGame(currentGameId); // Re-select to update data
-                    }
-                } else {
-                    // If no saved games, initialize with a new game and the default roster
-                    if (masterRoster.length === 0) {
-                        loadRosterData(true);
-                    }
-                    if (!currentGameId) {
-                        createNewGame();
-                    } else {
-                        renderAll(); // If game ID exists but no remote data, just render local
-                    }
-                }
-            }, (error) => {
-                console.error("Error fetching games:", error);
-                // If a connection was made but the query failed (e.g., security rules), show a specific error
-                showModal("Data Fetch Error", "Failed to fetch saved games. This is often caused by Firebase security rules not allowing read access.");
-                loadRosterData(true);
-            });
         };
 
         /**
-         * Saves the current lineup state to Firestore.
+         * Saves the current lineup state to Local Storage.
          */
-        window.saveGame = async () => {
-            // Re-check app ID here to ensure we use the correct collection path
-            const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
-            if (!currentGameId || !isAuthReady || !db) {
-                showModal("Save Error", "The app is not fully initialized. Please wait a moment and ensure you have parsed a roster and selected a game.");
-                return;
+        window.saveGame = () => {
+            if (!currentGameId) {
+                // If no ID, create a new one first
+                createNewGame();
+                // saveGame will be called recursively after ID is assigned
+                return; 
             }
 
             const gameSelector = document.getElementById('game-selector');
@@ -378,19 +273,20 @@ Goalie Default,30,LH
                 masterRoster: masterRoster,
                 lineup: currentLineup,
                 availableRoster: availableRoster,
-                updatedBy: userId,
                 updatedAt: new Date().toISOString()
             };
 
-            try {
-                // Use the dynamically determined appId for the doc reference
-                const gameDocRef = doc(db, `artifacts/${appId}/public/data/hockey_lineups_shot`, currentGameId);
-                await setDoc(gameDocRef, gameData);
-                showModal("Success!", `Lineup "${gameData.name}" saved successfully.`);
-            } catch (error) {
-                console.error("Error saving game:", error);
-                showModal("Save Error", "Failed to save the lineup. This might be due to incorrect Firebase setup or security rules.");
+            // Find and replace the existing game, or push if new
+            const existingIndex = allGames.findIndex(g => g.id === currentGameId);
+            if (existingIndex > -1) {
+                allGames[existingIndex] = gameData;
+            } else {
+                allGames.push(gameData);
             }
+
+            saveAllGamesToLocalStorage();
+            renderGameSelector();
+            showModal("Success!", `Lineup "${gameData.name}" saved successfully to your browser.`);
         };
 
         /**
@@ -399,41 +295,38 @@ Goalie Default,30,LH
         window.createNewGame = () => {
             const newGameId = generateUUID();
             const timestamp = new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
-            const newGameName = `New Game - ${timestamp}`;
+            let newGameName = `New Lineup - ${timestamp}`;
+
+            // Ensure the name is unique
+            let counter = 1;
+            const originalName = newGameName;
+            while(allGames.some(g => g.name === newGameName)) {
+                newGameName = `${originalName} (${counter++})`;
+            }
 
             // Reset state to a new, empty lineup but keep the current master roster data
             currentGameId = newGameId;
-            currentLineup = {
-                forwards: Array(4).fill(null).map(() => ([
-                    {role: 'Left Forward', roleId: 'LF', player: null},
-                    {role: 'Center Forward', roleId: 'CF', player: null},
-                    {role: 'Right Forward', roleId: 'RF', player: null}
-                ])),
-                defense: Array(3).fill(null).map(() => ([
-                    {role: 'Left Defense', roleId: 'LD', player: null},
-                    {role: 'Right Defense', roleId: 'RD', player: null}
-                ])),
-                goalie: {role: 'Goalie', roleId: 'G', player: null}
-            };
+            currentLineup = getEmptyLineup();
+            // Reset available roster based on the current master roster
             availableRoster = [...masterRoster];
 
-            // Add new option to selector and select it (locally)
+            // Add new option to the list (but don't save yet)
             const newGameData = { 
                 id: newGameId, 
                 name: newGameName, 
-                masterRoster: masterRoster, 
+                masterRoster: masterRoster, // Keep current master roster for the new game
                 lineup: currentLineup, 
-                availableRoster: availableRoster 
+                availableRoster: availableRoster,
+                updatedAt: new Date().toISOString()
             };
             allGames.push(newGameData);
+            saveAllGamesToLocalStorage(); // Save the new list of games
+            
             renderGameSelector();
             gameSelectorEl.value = newGameId;
             selectGame(newGameId); // This will re-render
 
-            // Only show modal if triggered manually, not on initial load
-            if (masterRoster.length > 0) {
-                showModal("Game Created", `A new game template titled "${newGameName}" has been created locally. Remember to Save Lineup!`);
-            }
+            showModal("Lineup Created", `A new lineup titled "${newGameName}" has been created. Remember to Save Lineup!`);
         };
 
         /**
@@ -450,7 +343,8 @@ Goalie Default,30,LH
             // Update local state from loaded data
             currentGameId = selectedGame.id;
             masterRoster = selectedGame.masterRoster || [];
-            currentLineup = selectedGame.lineup || currentLineup;
+            // Deep copy to prevent mutating the saved data directly before saveGame is called
+            currentLineup = JSON.parse(JSON.stringify(selectedGame.lineup || getEmptyLineup())); 
             availableRoster = selectedGame.availableRoster || [...masterRoster];
 
             // Update the roster text area
@@ -459,7 +353,7 @@ Goalie Default,30,LH
                 const rosterCSV = masterRoster.map(p => `${p.name},${p.number},${p.shot}`).join('\n');
                 csvInputEl.value = "Name,Number,Shot\n" + rosterCSV;
             } else {
-                 // Fallback if the saved game has no roster (shouldn't happen if saved correctly)
+                 // Fallback if the saved game has no roster
                 csvInputEl.value = DEFAULT_ROSTER_CSV.trim();
             }
 
@@ -472,12 +366,9 @@ Goalie Default,30,LH
          */
         const renderGameSelector = () => {
             gameSelectorEl.innerHTML = ''; // Clear previous options
-
-            if (!allGames.some(g => g.id === currentGameId) && currentGameId) {
-                // If a local game is active but not in the cloud list, add a local placeholder
-                const localGame = { id: currentGameId, name: `[Local] Game ${currentGameId.substring(0, 8)}...` };
-                allGames.push(localGame);
-            }
+            
+            // Sort by last updated date descending
+            allGames.sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt));
 
             allGames.forEach(game => {
                 const option = document.createElement('option');
@@ -518,35 +409,47 @@ Goalie Default,30,LH
             masterRoster = playerLines.map((line, index) => {
                 // Safely split the line by comma, trim spaces
                 const parts = line.split(',').map(p => p.trim());
-                const [name, number, shot] = parts;
+                let [name, number, shot] = parts;
                 
+                // Sanitize and default values
+                name = name || `Player ${index + 1}`;
+                number = number || '';
+                shot = shot ? shot.toUpperCase().replace(/\s*\(G\)/, '') : 'RH'; // Remove (G) for shot
+                
+                // Simple detection if the player is a goalie (used for card styling)
+                let roleId = 'F'; // Default to forward type
+                if (name.toLowerCase().includes('goalie') || parts.some(p => p.toLowerCase().includes('(g)'))) {
+                    roleId = 'G';
+                }
+
                 return {
                     id: generateUUID(),
-                    name: name || `Player ${index + 1}`,
-                    number: number || '',
-                    shot: shot ? shot.toUpperCase() : 'RH',
+                    name: name,
+                    number: number,
+                    shot: ['LH', 'RH'].includes(shot) ? shot : 'RH',
+                    roleId: roleId,
                     rosterKey: `${name}-${number}-${shot}` 
                 };
-            }).filter(p => p.name); // Filter out players without a name
+            }).filter(p => p.name && p.name !== 'Name'); // Filter out players without a name (and potentially the header if it slipped through)
 
             if (masterRoster.length > 0) {
                 // Reset available roster based on the new master list
                 availableRoster = [...masterRoster];
 
-                // If a game is active, reset its lineup state based on the new roster keys
-                if (currentGameId) {
-                    currentLineup = {
-                        forwards: Array(4).fill(null).map(() => ([
-                            {role: 'Left Forward', roleId: 'LF', player: null},
-                            {role: 'Center Forward', roleId: 'CF', player: null},
-                            {role: 'Right Forward', roleId: 'RF', player: null}
-                        ])),
-                        defense: Array(3).fill(null).map(() => ([
-                            {role: 'Left Defense', roleId: 'LD', player: null},
-                            {role: 'Right Defense', roleId: 'RD', player: null}
-                        ])),
-                        goalie: {role: 'Goalie', roleId: 'G', player: null}
-                    };
+                // Reset lineup state
+                currentLineup = getEmptyLineup();
+                
+                // If a game is currently selected, update its master roster and reset lineup
+                const existingIndex = allGames.findIndex(g => g.id === currentGameId);
+                if (existingIndex > -1) {
+                    allGames[existingIndex].masterRoster = masterRoster;
+                    allGames[existingIndex].availableRoster = availableRoster;
+                    allGames[existingIndex].lineup = currentLineup;
+                    allGames[existingIndex].updatedAt = new Date().toISOString();
+                    saveAllGamesToLocalStorage();
+                } else if (!currentGameId && allGames.length === 0) {
+                    // Initial load with a fresh roster, create and save a default game
+                    createNewGame();
                 }
 
                 renderAll();
@@ -564,40 +467,32 @@ Goalie Default,30,LH
             let rosterData = csvInputEl.value.trim();
             let source = "text input";
 
-            if (!rosterData) {
-                // If textarea is empty, attempt to fetch from URL
-                if (GOOGLE_SHEET_URL.includes('PASTE_YOUR_PUBLISHED_CSV_LINK_HERE') || GOOGLE_SHEET_URL === '') {
-                    // On initial load, use the fallback CSV if URL is still placeholder
-                    rosterData = DEFAULT_ROSTER_CSV;
-                    source = "default hardcoded list";
-                    csvInputEl.value = rosterData.trim();
-                } else {
-                    // Fetch from URL
-                    source = "Google Sheet URL";
-                    if (!isInitialLoad) {
-                        showModal("Loading...", "Fetching roster data from the published Google Sheet...");
-                    }
+            if (!rosterData || rosterData === 'Name,Number,Shot') {
+                // Textarea is empty, attempt to fetch from URL
+                source = "Google Sheet URL";
+                if (!isInitialLoad) {
+                    showModal("Loading...", "Fetching roster data from the published Google Sheet...");
+                }
 
-                    try {
-                        const response = await fetch(GOOGLE_SHEET_URL);
-                        if (!response.ok) {
-                            throw new Error(`HTTP error! status: ${response.status}`);
-                        }
-                        rosterData = await response.text();
-                        
-                        // Set the fetched data into the textarea for display/editing
-                        csvInputEl.value = rosterData.trim(); 
-                        closeModal(); // Close loading modal
-                        
-                    } catch (error) {
-                        console.error("Fetch Roster Error:", error);
-                        showModal("Connection Error", "Failed to load the roster from the Google Sheet URL. Using the default roster.");
-                        
-                        // Fallback on failure
-                        rosterData = DEFAULT_ROSTER_CSV; 
-                        source = "default hardcoded list (after fetch failure)";
-                        csvInputEl.value = rosterData.trim();
+                try {
+                    const response = await fetch(GOOGLE_SHEET_URL);
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! status: ${response.status}`);
                     }
+                    rosterData = await response.text();
+                    
+                    // Set the fetched data into the textarea for display/editing
+                    csvInputEl.value = rosterData.trim(); 
+                    closeModal(); // Close loading modal
+                    
+                } catch (error) {
+                    console.error("Fetch Roster Error:", error);
+                    showModal("Connection Error", `Failed to load the roster from the Google Sheet URL: ${error.message}. Using the default roster.`);
+                    
+                    // Fallback on failure
+                    rosterData = DEFAULT_ROSTER_CSV; 
+                    source = "default hardcoded list (after fetch failure)";
+                    csvInputEl.value = rosterData.trim();
                 }
             }
 
@@ -620,7 +515,8 @@ Goalie Default,30,LH
          */
         const createPlayerCard = (player) => {
             const shotClass = player.shot === 'LH' ? 'is-lh' : 'is-rh';
-            const isGoalieClass = player.roleId === 'G' || player.name.toLowerCase().includes('goalie') ? 'is-goalie-type' : '';
+            // Use the roleId determined during parsing (G for goalie) for styling
+            const isGoalieClass = player.roleId === 'G' ? 'is-goalie-type' : '';
             
             return `
                 <div id="player-${player.id}"
@@ -650,7 +546,8 @@ Goalie Default,30,LH
                     class="lineup-slot p-2 rounded-lg border-2 border-dashed border-gray-300 bg-gray-50 hover:bg-gray-100 transition duration-150"
                     ondragover="handleDragOver(event)"
                     ondragleave="handleDragLeave(event)"
-                    ondrop="handleDrop(event)">
+                    ondrop="handleDrop(event)"
+                    data-slot-roleid="${slot.roleId}">
                     <p class="text-xs font-semibold text-gray-600 mb-1">${slot.role}</p>
                     ${playerCard}
                 </div>
@@ -749,6 +646,16 @@ Goalie Default,30,LH
          */
         window.handleDragOver = (event) => {
             event.preventDefault(); // Allows drop
+            
+            if (draggedPlayer) {
+                const targetRoleId = event.currentTarget.dataset.slotRoleid;
+                // Simple Check: prevent dropping non-goalies into the goalie slot and vice-versa
+                if ((draggedPlayer.roleId === 'G' && targetRoleId !== 'G') || (draggedPlayer.roleId !== 'G' && targetRoleId === 'G')) {
+                    event.dataTransfer.dropEffect = 'none';
+                    return; // Do not allow drop
+                }
+            }
+
             event.dataTransfer.dropEffect = 'move';
             // Add a class for visual drag-over feedback
             event.currentTarget.classList.add('drag-over');
@@ -772,13 +679,21 @@ Goalie Default,30,LH
 
             if (!draggedPlayer) return;
 
+            // Enforce Goalie/Skater check again on drop
+            const targetRoleId = dropTarget.dataset.slotRoleid;
+            if (targetRoleId && ((draggedPlayer.roleId === 'G' && targetRoleId !== 'G') || (draggedPlayer.roleId !== 'G' && targetRoleId === 'G'))) {
+                 showModal("Invalid Drop", `A ${draggedPlayer.roleId === 'G' ? 'Goalie' : 'Skater'} cannot be placed in a ${targetRoleId === 'G' ? 'Goalie' : 'Skater'} slot.`);
+                 return; 
+            }
+
             // 1. Remove player from its original location (roster or lineup)
             removePlayer(draggedPlayer.id, originalSourceId);
 
+            let message = "";
             if (dropTarget.id === 'roster-list') {
                 // Dropped back onto the Roster List
                 placePlayerInRoster(draggedPlayer);
-                showModal("Player Removed", `${draggedPlayer.name} is back in the available roster.`);
+                message = `${draggedPlayer.name} is back in the available roster.`;
             } else {
                 // Dropped onto a Lineup Slot
                 const targetSlotId = dropTarget.id;
@@ -790,17 +705,19 @@ Goalie Default,30,LH
                     // If slot is occupied, move the existing player back to the roster
                     removePlayer(existingPlayer.id, targetSlotId);
                     placePlayerInRoster(existingPlayer);
+                    message += `${existingPlayer.name} swapped out. `;
                 }
 
                 // Place the new player in the target slot
                 placePlayerInLineupSlot(targetSlotId, draggedPlayer);
-                showModal("Line Change", `${draggedPlayer.name} placed at ${getRoleName(targetSlotId)}.`);
+                message += `${draggedPlayer.name} placed at ${getRoleName(targetSlotId)}.`;
             }
 
             // 3. Clear state and re-render
             draggedPlayer = null;
             originalSourceId = null;
             renderAll();
+            showModal(dropTarget.id === 'roster-list' ? "Player Removed" : "Line Change", message);
         };
 
         /**
@@ -828,9 +745,9 @@ Goalie Default,30,LH
             const [fullMatch, type, lineNum, roleId] = match;
 
             if (type === 'F') {
-                return currentLineup.forwards[parseInt(lineNum) - 1].find(s => s.roleId === roleId)?.role || `${roleId} (Forward Line ${lineNum})`;
+                return currentLineup.forwards[parseInt(lineNum) - 1]?.find(s => s.roleId === roleId)?.role || `${roleId} (Forward Line ${lineNum})`;
             } else if (type === 'D') {
-                return currentLineup.defense[parseInt(lineNum) - 1].find(s => s.roleId === roleId)?.role || `${roleId} (Defense Pair ${lineNum})`;
+                return currentLineup.defense[parseInt(lineNum) - 1]?.find(s => s.roleId === roleId)?.role || `${roleId} (Defense Pair ${lineNum})`;
             } else if (type === 'G') {
                 return currentLineup.goalie.role;
             }
@@ -866,6 +783,9 @@ Goalie Default,30,LH
          * @param {string} sourceId - The ID of the slot or 'roster'.
          */
         const removePlayer = (playerId, sourceId) => {
+            const playerToRemove = masterRoster.find(p => p.id === playerId);
+            if (!playerToRemove) return;
+
             if (sourceId === 'roster') {
                 // Remove from available roster list
                 availableRoster = availableRoster.filter(p => p.id !== playerId);
@@ -897,7 +817,7 @@ Goalie Default,30,LH
          * @param {object} player - The player object to place.
          */
         const placePlayerInRoster = (player) => {
-            // Only add if not already present (prevent duplicates, though drag/drop logic should prevent this)
+            // Only add if not already present
             if (!availableRoster.some(p => p.id === player.id)) {
                 availableRoster.push(player);
                 // Sort by name for consistency
@@ -933,5 +853,28 @@ Goalie Default,30,LH
 
         // --- APPLICATION START ---
 
-        // Set the default roster into the textarea on load (will be overwritten if URL fetch succeeds)
-        csvInputEl.value = DEFAULT_RO
+        const initializeApp = async () => {
+            // 1. Load all saved games from Local Storage
+            loadAllGamesFromLocalStorage();
+            renderGameSelector();
+
+            // 2. Load the Roster Data (initial load attempts URL first, then default)
+            await loadRosterData(true); 
+
+            // 3. Set initial current game/lineup
+            if (allGames.length > 0) {
+                // Select the most recently updated game
+                selectGame(allGames[0].id);
+            } else {
+                // If no games saved locally, create a new one using the loaded roster
+                createNewGame();
+            }
+
+            renderAll();
+        };
+
+        initializeApp();
+
+    </script>
+</body>
+</html>
