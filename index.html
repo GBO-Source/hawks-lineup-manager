@@ -153,7 +153,7 @@
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { getFirestore, doc, setDoc, onSnapshot, collection, query } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
         import { setLogLevel } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
@@ -183,27 +183,13 @@ Rowan,2,RH
 Sam,16,LH
 `;
         
-        // 🚨 START: FIREBASE CONFIGURATION (Provided by User) 🚨
-        const firebaseConfig = {
-            apiKey: "AIzaSyBzllQwWzoCtCp5sPG_KMhYNeqM9VE29h4",
-            authDomain: "hawks-503-lineup-manager.firebaseapp.com",
-            projectId: "hawks-503-lineup-manager",
-            storageBucket: "hawks-503-lineup-manager.firebasestorage.app",
-            messagingSenderId: "861896159627",
-            appId: "1:861896159627:web:2f9973c95e484ed6ccbf8e"
-        };
-        // 🚨 END: FIREBASE CONFIGURATION 🚨
-
-        // Use a fixed ID for external public deployment, as the Canvas variable is not available.
-        const appId = 'hawks-lineup-public-id'; 
-
+        // State Management
         let app;
         let db;
         let auth;
         let userId = 'anon';
         let isAuthReady = false;
 
-        // State Management
         let currentGameId = null;
         let allGames = []; // List of all saved games
         let masterRoster = []; // All players from CSV
@@ -217,8 +203,8 @@ Sam,16,LH
                 {role: 'Right Forward', roleId: 'RF', player: null}
             ])),
             defense: Array(3).fill(null).map(() => ([
-                {role: 'Left Defense', roleId: 'LD', player: null}, // LH Shot Preferred
-                {role: 'Right Defense', roleId: 'RD', player: null} // RH Shot Preferred
+                {role: 'Left Defense', roleId: 'LD', player: null},
+                {role: 'Right Defense', roleId: 'RD', player: null}
             ])),
             goalie: {role: 'Goalie', roleId: 'G', player: null}
         };
@@ -260,44 +246,65 @@ Sam,16,LH
             document.getElementById('message-modal').classList.remove('flex');
         };
 
-        // --- FIREBASE INITIALIZATION & AUTH ---
+        // --- FIREBASE INITIALIZATION & AUTH (CORRECTED) ---
 
         /**
          * Initializes Firebase and sets up authentication listener.
          */
         const initializeFirebase = async () => {
-            if (!firebaseConfig.projectId || firebaseConfig.projectId.includes("YOUR_PROJECT_ID")) {
-                console.error("Firebase config not available or incomplete.");
-                showModal("Configuration Error", "Firebase configuration is missing or invalid. Please check the code and replace the placeholder with your config.");
-                loadRosterFromCSV(DEFAULT_ROSTER_CSV, true);
-                return;
-            }
+            let firebaseConfig = null;
+            let appId = 'default-app-id'; 
+            let initialAuthToken = null;
 
             try {
+                // Safely check for and parse the Firebase config global variable
+                if (typeof __firebase_config !== 'undefined') {
+                    firebaseConfig = JSON.parse(__firebase_config);
+                    appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+                }
+
+                if (!firebaseConfig) {
+                    throw new Error("Missing Firebase configuration globals.");
+                }
+
+                // Safely check for the initial auth token global variable
+                if (typeof __initial_auth_token !== 'undefined') {
+                    initialAuthToken = __initial_auth_token;
+                }
+
+                // 2. Initialize Firebase services
                 app = initializeApp(firebaseConfig);
                 db = getFirestore(app);
                 auth = getAuth(app);
+                
                 document.getElementById('app-id-display').textContent = `App ID: ${appId} (Public Data)`;
 
-                // Since we are externally hosted, we sign in anonymously for public data access.
-                await signInAnonymously(auth);
-                console.log("Signed in anonymously.");
+                // 3. Handle Authentication
+                // Use custom token if available, otherwise sign in anonymously
+                if (initialAuthToken) {
+                    await signInWithCustomToken(auth, initialAuthToken);
+                    console.log("Signed in with custom token.");
+                } else {
+                    console.warn("No custom token found. Signing in anonymously.");
+                    await signInAnonymously(auth);
+                }
                 
+                // 4. Auth State Change Listener (Sets userId and isAuthReady)
                 onAuthStateChanged(auth, (user) => {
                     if (user) {
                         userId = user.uid;
                         document.getElementById('user-id-display').textContent = `User ID: ${userId.substring(0, 8)}...`;
-                        isAuthReady = true;
-                        console.log("Auth state ready. User ID:", userId);
-                        // Start listeners after auth is ready
-                        setupGameListener();
                     } else {
-                        userId = 'anon';
-                        document.getElementById('user-id-display').textContent = `User ID: anon`;
-                        isAuthReady = true;
-                        setupGameListener(); 
+                        // Fallback user ID if sign-in failed or user signed out
+                        userId = crypto.randomUUID();
+                        document.getElementById('user-id-display').textContent = `User ID: anon (${userId.substring(0, 4)}...)`;
                     }
+                    isAuthReady = true;
+                    console.log("Auth state ready. User ID:", userId);
+                    // Start listeners only after auth is confirmed ready
+                    setupGameListener(appId);
                 });
+
             } catch (error) {
                 console.error("Error initializing Firebase or signing in:", error);
                 showModal("Firebase Error", "Failed to initialize Firebase or sign in. Check console for details. Loading default roster.");
@@ -309,25 +316,26 @@ Sam,16,LH
 
         /**
          * Gets the collection reference for public game data.
+         * @param {string} appId - The application ID.
          */
-        const getGamesCollectionRef = () => {
-            // Public path using the fixed appId
+        const getGamesCollectionRef = (appId) => {
+            // Public data path: /artifacts/{appId}/public/data/hockey_lineups_shot
             return collection(db, `artifacts/${appId}/public/data/hockey_lineups_shot`);
         };
 
         /**
          * Sets up the real-time listener for all saved games.
+         * @param {string} appId - The application ID.
          */
-        const setupGameListener = () => {
+        const setupGameListener = (appId) => {
             if (!isAuthReady || !db) {
-                // If Firebase didn't initialize, load default roster here
                 if (masterRoster.length === 0) {
                     loadRosterFromCSV(DEFAULT_ROSTER_CSV, true);
                 }
                 return;
             }
 
-            const gamesQuery = query(getGamesCollectionRef());
+            const gamesQuery = query(getGamesCollectionRef(appId));
 
             onSnapshot(gamesQuery, (snapshot) => {
                 allGames = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
@@ -363,6 +371,9 @@ Sam,16,LH
          * Saves the current lineup state to Firestore.
          */
         window.saveGame = async () => {
+            // Re-check app ID here to ensure we use the correct collection path
+            const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+            
             if (!currentGameId || !isAuthReady || !db) {
                 showModal("Save Error", "The app is not fully initialized. Please wait a moment and ensure you have parsed a roster and selected a game.");
                 return;
@@ -385,12 +396,13 @@ Sam,16,LH
             };
 
             try {
+                // Use the dynamically determined appId for the doc reference
                 const gameDocRef = doc(db, `artifacts/${appId}/public/data/hockey_lineups_shot`, currentGameId);
                 await setDoc(gameDocRef, gameData);
                 showModal("Success!", `Lineup "${gameData.name}" saved successfully.`);
             } catch (error) {
                 console.error("Error saving game:", error);
-                showModal("Save Error", "Failed to save the lineup. This might be due to missing Firebase setup or security rules.");
+                showModal("Save Error", "Failed to save the lineup. This might be due to incorrect Firebase setup or security rules.");
             }
         };
 
@@ -475,7 +487,7 @@ Sam,16,LH
         const parseRosterCSV = (csvText) => {
             const players = [];
             const lines = csvText.split('\n').filter(line => line.trim() !== '');
-            const validShots = ['LH', 'RH'];
+            const validShots = ['LH', 'RH', 'G'];
 
             for (const line of lines) {
                 const parts = line.split(',').map(p => p.trim());
@@ -486,7 +498,7 @@ Sam,16,LH
                 const number = parts[1] ? parts[1].trim() : 'N/A'; // Number is index 1
                 const shot = parts[2].toUpperCase(); // Shot is index 2
 
-                if (name && (validShots.includes(shot) || shot === 'G')) {
+                if (name && validShots.includes(shot)) {
                     players.push({
                         id: generateUUID(),
                         name: name,
