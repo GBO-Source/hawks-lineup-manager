@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -47,6 +48,50 @@
             border-color: #f87171; /* Red-400 */
         }
     </style>
+
+<!-- Firebase SDKs -->
+<script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-database.js"></script>
+<script>
+  // TODO: Replace the following with your app's Firebase project configuration
+  const firebaseConfig = {
+    apiKey: "YOUR_API_KEY",
+    authDomain: "YOUR_PROJECT_ID.firebaseapp.com",
+    databaseURL: "https://YOUR_PROJECT_ID.firebaseio.com",
+    projectId: "YOUR_PROJECT_ID",
+    storageBucket: "YOUR_PROJECT_ID.appspot.com",
+    messagingSenderId: "YOUR_SENDER_ID",
+    appId: "YOUR_APP_ID"
+  };
+
+  // Initialize Firebase
+  const app = firebase.initializeApp(firebaseConfig);
+  const db = firebase.database();
+
+  // Function to save lineup data to Firebase
+  function saveLineup(gameId, lineupData) {
+    db.ref('lineups/' + gameId).set(lineupData)
+      .then(() => {
+        console.log("Lineup saved successfully.");
+      })
+      .catch((error) => {
+        console.error("Error saving lineup:", error);
+      });
+  }
+
+  // Function to load lineup data from Firebase
+  function loadLineup(gameId, callback) {
+    db.ref('lineups/' + gameId).once('value')
+      .then((snapshot) => {
+        const data = snapshot.val();
+        callback(data);
+      })
+      .catch((error) => {
+        console.error("Error loading lineup:", error);
+      });
+  }
+</script>
+
 </head>
 <body class="p-4 md:p-8">
 
@@ -227,7 +272,7 @@ Jack Campbell,36,LH (G)
          */
         const loadAllGamesFromLocalStorage = () => {
             try {
-                const storedData = localStorage.getItem(LOCAL_STORAGE_KEY);
+                const storedData = 
                 if (storedData) {
                     allGames = JSON.parse(storedData);
                     console.log("Loaded all game templates from Local Storage:", allGames.length);
@@ -245,7 +290,7 @@ Jack Campbell,36,LH (G)
          */
         const saveAllGamesToLocalStorage = () => {
             try {
-                localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(allGames));
+                );
             } catch (e) {
                 console.error("Error saving to local storage:", e);
                 showModal("Storage Error", "Failed to save the lineup data to your browser. Your browser might be in private/incognito mode.");
