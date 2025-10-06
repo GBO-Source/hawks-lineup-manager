@@ -49,32 +49,7 @@
             border-color: #f87171; /* Red-400 */
         }
     </style>
-<script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app.js"></script><script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-database.js"></script><script>
-  const firebaseConfig = {
-    apiKey: "AIzaSyCDA5e0ukol0Smd6lKfk8heB_nFLOajPCM",
-    authDomain: "hawks-lineup-manager.firebaseapp.com",
-    projectId: "hawks-lineup-manager",
-    storageBucket: "hawks-lineup-manager.firebasestorage.app",
-    messagingSenderId: "96161354471",
-    appId: "1:96161354471:web:5524590c7d657a36a54842"
-  };
-
-  // Initialize Firebase
-  const app = firebase.initializeApp(firebaseConfig);
-  const db = firebase.database();
-
-  // Save lineup data to Firebase
-  function saveLineup(gameId, lineupData) {
-    db.ref('lineups/' + gameId).set(lineupData);
-  }
-
-  // Load lineup data from Firebase
-  function loadLineup(gameId, callback) {
-    db.ref('lineups/' + gameId).once('value').then(snapshot => {
-      callback(snapshot.val());
-    });
-  }
-</script></head>
+</head>
 <body class="p-4 md:p-8">
 <header class="mb-8">
 <h1 class="text-4xl font-extrabold text-gray-900 mb-2">Hawks 503 Lineup Manager 🏒 (Local)</h1>
@@ -154,6 +129,57 @@ Leon Draisaitl,29,LH
 <button class="w-full bg-blue-600 text-white p-2 rounded-lg hover:bg-blue-700 transition duration-150" onclick="closeModal()">Close</button>
 </div>
 </div>
+<script type="module"></script>
 
+<script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-database.js"></script>
+<script>
+  const firebaseConfig = {
+    apiKey: "AIzaSyCDA5e0ukol0Smd6lKfk8heB_nFLOajPCM",
+    authDomain: "hawks-lineup-manager.firebaseapp.com",
+    projectId: "hawks-lineup-manager",
+    storageBucket: "hawks-lineup-manager.firebasestorage.app",
+    messagingSenderId: "96161354471",
+    appId: "1:96161354471:web:5524590c7d657a36a54842"
+  };
+  const app = firebase.initializeApp(firebaseConfig);
+  const db = firebase.database();
+
+  function saveRoster(gameId, rosterData) {
+    db.ref('rosters/' + gameId).set(rosterData);
+  }
+
+  function loadRoster(gameId, callback) {
+    db.ref('rosters/' + gameId).once('value').then(snapshot => {
+      callback(snapshot.val());
+    });
+  }
+
+  document.addEventListener("DOMContentLoaded", function() {
+    const loadButton = document.getElementById("loadRosterBtn");
+    if (loadButton) {
+      loadButton.addEventListener("click", function() {
+        const gameIdInput = document.getElementById("gameIdInput");
+        const gameId = gameIdInput ? gameIdInput.value : "defaultGame";
+        loadRoster(gameId, function(rosterData) {
+          if (rosterData) {
+            const rosterContainer = document.getElementById("rosterContainer");
+            if (rosterContainer) {
+              rosterContainer.innerHTML = "";
+              rosterData.forEach(player => {
+                const div = document.createElement("div");
+                div.className = "player";
+                div.textContent = player.name + " #" + player.number + " (" + player.shot + ")";
+                rosterContainer.appendChild(div);
+              });
+            }
+          } else {
+            alert("No roster found for this game.");
+          }
+        });
+      });
+    }
+  });
+</script>
 </body>
 </html>
