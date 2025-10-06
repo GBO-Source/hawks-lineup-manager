@@ -1,13 +1,11 @@
-
 <!DOCTYPE html>
-
 <html lang="en">
 <head>
-<meta charset="utf-8"/>
-<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
-<title>Hawks 503 Lineup Manager (Local Storage)</title>
-<script src="https://cdn.tailwindcss.com"></script>
-<style>
+    <meta charset="utf-8"/>
+    <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+    <title>Hawks 503 Lineup Manager (No Saving)</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@100..900&display=swap');
         body { font-family: 'Inter', sans-serif; background-color: #f7f9fc; }
         /* Custom styles for drag-and-drop */
@@ -29,15 +27,15 @@
             border-color: #3b82f6 !important; /* blue-500 */
         }
         
-        /* New Color Coding based on Shot */
+        /* Color Coding based on Shot */
         .is-lh {
-            /* This is the ORANGE tint for LH (Left Handed) shots */
+            /* ORANGE tint for LH (Left Handed) shots */
             background-color: #fff7ed; /* Orange-100 */
             color: #c2410c; /* Orange-700 */
             border-color: #fb923c; /* Orange-400 */
         }
         .is-rh {
-            /* This is the YELLOW tint for RH (Right Handed) shots */
+            /* YELLOW tint for RH (Right Handed) shots */
             background-color: #fefce8; /* Yellow-100 */
             color: #a16207; /* Yellow-700 */
             border-color: #facc15; /* Yellow-400 */
@@ -52,134 +50,336 @@
 </head>
 <body class="p-4 md:p-8">
 <header class="mb-8">
-<h1 class="text-4xl font-extrabold text-gray-900 mb-2">Hawks 503 Lineup Manager 🏒 (Local)</h1>
-<p class="text-lg text-gray-600">Build your lines using Name, Number, and Shot (LH/RH). Data is saved in your browser.</p>
+    <h1 class="text-4xl font-extrabold text-gray-900 mb-2">Hawks 503 Lineup Manager 🏒 (Temporary Data)</h1>
+    <p class="text-lg text-gray-600">Build your lines using Name, Number, and Shot (LH/RH). **Data is NOT saved**.</p>
 </header>
 <section class="bg-white p-6 rounded-xl shadow-lg mb-8">
-<h2 class="text-2xl font-semibold text-gray-800 mb-4">Game &amp; Roster Setup</h2>
-<div class="text-sm text-gray-500 mb-4 flex justify-between items-center" id="auth-info">
-<span class="font-medium text-gray-500" id="storage-info">Data is saved locally in your browser's Local Storage.</span>
-<span id="app-id-display">App Mode: Client-Side (No Backend)</span>
-</div>
-<div class="mb-4 flex flex-col md:flex-row md:items-center space-y-2 md:space-y-0 md:space-x-4">
-<label class="font-medium text-gray-700" for="game-selector">Load/New Lineup:</label>
-<select class="flex-grow p-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500" id="game-selector"></select>
-<button class="bg-green-600 text-white p-2 rounded-lg hover:bg-green-700 transition duration-150 shadow-md whitespace-nowrap" onclick="createNewGame()">
-<svg class="h-5 w-5 inline mr-1" fill="currentColor" viewbox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
-<path clip-rule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" fill-rule="evenodd"></path>
-</svg>
-                New Lineup
-            </button>
-<button class="bg-blue-600 text-white p-2 rounded-lg hover:bg-blue-700 transition duration-150 shadow-md" onclick="saveGame()">
-<svg class="h-5 w-5 inline mr-1" fill="currentColor" viewbox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
-<path d="M7 3a1 1 0 000 2h6a1 1 0 100-2H7z"></path>
-<path clip-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" fill-rule="evenodd"></path>
-</svg>
-                Save Lineup
-            </button>
-</div>
-<div class="mt-6">
-<label class="block font-medium text-gray-700 mb-1" for="csv-input">Roster Data (Edit and click "Load Roster" to update):</label>
-<textarea class="w-full p-3 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500 text-sm" id="csv-input" placeholder="Example:
+    <h2 class="text-2xl font-semibold text-gray-800 mb-4">Game &amp; Roster Setup</h2>
+    <div class="text-sm text-red-500 mb-4 flex justify-between items-center" id="auth-info">
+        <span class="font-medium text-red-500" id="storage-info">Data is NOT saved locally and will be lost when the page is closed.</span>
+        <span id="app-id-display">App Mode: Client-Side (No Backend)</span>
+    </div>
+    <div class="mb-4 flex flex-col md:flex-row md:items-center space-y-2 md:space-y-0 md:space-x-4">
+        <label class="font-medium text-gray-700" for="game-selector">Lineup Status:</label>
+        <select class="flex-grow p-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500" id="game-selector">
+            <option>Current Lineup (Temporary)</option>
+        </select>
+        <button class="bg-green-600 text-white p-2 rounded-lg hover:bg-green-700 transition duration-150 shadow-md whitespace-nowrap" onclick="createNewGame()">
+            <svg class="h-5 w-5 inline mr-1" fill="currentColor" viewbox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
+                <path clip-rule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" fill-rule="evenodd"></path>
+            </svg>
+            New Lineup (Clears Roster)
+        </button>
+        <button class="bg-gray-400 text-white p-2 rounded-lg shadow-md cursor-not-allowed">
+            <svg class="h-5 w-5 inline mr-1" fill="currentColor" viewbox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
+                <path d="M7 3a1 1 0 000 2h6a1 1 0 100-2H7z"></path>
+                <path clip-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" fill-rule="evenodd"></path>
+            </svg>
+            Save Lineup (Disabled)
+        </button>
+    </div>
+    <div class="mt-6">
+        <label class="block font-medium text-gray-700 mb-1" for="csv-input">Roster Data (Enter player data and click "Load Roster"):</label>
+        <textarea class="w-full p-3 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500 text-sm" id="csv-input" placeholder="Example:
 Name,Number,Shot
 Connor McDavid,97,RH
 Leon Draisaitl,29,LH
+Morgan Rielly,44,LH
+Carey Price,31,G
 ..." rows="8"></textarea>
-<button class="mt-2 bg-indigo-600 text-white p-2 rounded-lg hover:bg-indigo-700 transition duration-150 shadow-md w-full" onclick="loadRosterData()">Load Roster (from text or URL)</button>
-</div>
+        <button class="mt-2 bg-indigo-600 text-white p-2 rounded-lg hover:bg-indigo-700 transition duration-150 shadow-md w-full" onclick="loadRosterData()">Load Roster</button>
+    </div>
 </section>
 <div class="grid grid-cols-1 lg:grid-cols-4 gap-6">
-<section class="lg:col-span-1 bg-white p-6 rounded-xl shadow-lg">
-<h2 class="text-2xl font-semibold text-gray-800 mb-4">Available Roster (<span id="roster-count">0</span>)</h2>
-<div class="space-y-2 max-h-[60vh] overflow-y-auto" id="roster-list">
-</div>
-</section>
-<section class="lg:col-span-3 bg-white p-6 rounded-xl shadow-lg">
-<h2 class="text-2xl font-semibold text-gray-800 mb-4">Current Lineup</h2>
-<h3 class="text-xl font-medium text-blue-800 mb-2 mt-4 flex items-center">
-<svg class="h-6 w-6 mr-2" fill="currentColor" viewbox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
-<path clip-rule="evenodd" d="M3 5a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zM3 10a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zM3 15a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1z" fill-rule="evenodd"></path>
-</svg>
-                Forward Lines (4)
-            </h3>
-<div class="space-y-4" id="forward-lines">
-</div>
-<h3 class="text-xl font-medium text-green-800 mb-2 mt-6 flex items-center">
-<svg class="h-6 w-6 mr-2" fill="currentColor" viewbox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
-<path clip-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" fill-rule="evenodd"></path>
-</svg>
-                Defense Pairings (3)
-            </h3>
-<div class="space-y-4" id="defense-lines">
-</div>
-<h3 class="text-xl font-medium text-red-800 mb-2 mt-6 flex items-center">
-<svg class="h-6 w-6 mr-2" fill="currentColor" viewbox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
-<path clip-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM7 9a1 1 0 100 2h6a1 1 0 100-2H7z" fill-rule="evenodd"></path>
-</svg>
-                Goalie (1)
-            </h3>
-<div class="grid grid-cols-1 gap-4" id="goalie-line">
-</div>
-</section>
+    <section class="lg:col-span-1 bg-white p-6 rounded-xl shadow-lg">
+        <h2 class="text-2xl font-semibold text-gray-800 mb-4">Available Roster (<span id="roster-count">0</span>)</h2>
+        <div class="space-y-2 max-h-[60vh] overflow-y-auto" id="roster-list">
+        </div>
+    </section>
+    <section class="lg:col-span-3 bg-white p-6 rounded-xl shadow-lg">
+        <h2 class="text-2xl font-semibold text-gray-800 mb-4">Current Lineup</h2>
+        <h3 class="text-xl font-medium text-blue-800 mb-2 mt-4 flex items-center">
+            <svg class="h-6 w-6 mr-2" fill="currentColor" viewbox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
+                <path clip-rule="evenodd" d="M3 5a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zM3 10a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zM3 15a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1z" fill-rule="evenodd"></path>
+            </svg>
+            Forward Lines (4)
+        </h3>
+        <div class="space-y-4" id="forward-lines">
+        </div>
+        <h3 class="text-xl font-medium text-green-800 mb-2 mt-6 flex items-center">
+            <svg class="h-6 w-6 mr-2" fill="currentColor" viewbox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
+                <path clip-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" fill-rule="evenodd"></path>
+            </svg>
+            Defense Pairings (3)
+        </h3>
+        <div class="space-y-4" id="defense-lines">
+        </div>
+        <h3 class="text-xl font-medium text-red-800 mb-2 mt-6 flex items-center">
+            <svg class="h-6 w-6 mr-2" fill="currentColor" viewbox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
+                <path clip-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM7 9a1 1 0 100 2h6a1 1 0 100-2H7z" fill-rule="evenodd"></path>
+            </svg>
+            Goalie (1)
+        </h3>
+        <div class="grid grid-cols-1 gap-4" id="goalie-line">
+        </div>
+    </section>
 </div>
 <div class="fixed inset-0 bg-gray-900 bg-opacity-50 hidden items-center justify-center p-4 z-50" id="message-modal">
-<div class="bg-white p-6 rounded-xl shadow-2xl w-full max-w-sm">
-<h3 class="text-xl font-bold mb-3 text-gray-800" id="modal-title"></h3>
-<p class="mb-4 text-gray-600" id="modal-message"></p>
-<button class="w-full bg-blue-600 text-white p-2 rounded-lg hover:bg-blue-700 transition duration-150" onclick="closeModal()">Close</button>
+    <div class="bg-white p-6 rounded-xl shadow-2xl w-full max-w-sm">
+        <h3 class="text-xl font-bold mb-3 text-gray-800" id="modal-title"></h3>
+        <p class="mb-4 text-gray-600" id="modal-message"></p>
+        <button class="w-full bg-blue-600 text-white p-2 rounded-lg hover:bg-blue-700 transition duration-150" onclick="closeModal()">Close</button>
+    </div>
 </div>
-</div>
-<script type="module"></script>
 
-<script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-database.js"></script>
 <script>
-  const firebaseConfig = {
-    apiKey: "AIzaSyCDA5e0ukol0Smd6lKfk8heB_nFLOajPCM",
-    authDomain: "hawks-lineup-manager.firebaseapp.com",
-    projectId: "hawks-lineup-manager",
-    storageBucket: "hawks-lineup-manager.firebasestorage.app",
-    messagingSenderId: "96161354471",
-    appId: "1:96161354471:web:5524590c7d657a36a54842"
-  };
-  const app = firebase.initializeApp(firebaseConfig);
-  const db = firebase.database();
+    // --- Core Data Structures ---
+    let currentRoster = []; // Holds the list of player objects
 
-  function saveRoster(gameId, rosterData) {
-    db.ref('rosters/' + gameId).set(rosterData);
-  }
+    // --- Utility Functions ---
 
-  function loadRoster(gameId, callback) {
-    db.ref('rosters/' + gameId).once('value').then(snapshot => {
-      callback(snapshot.val());
-    });
-  }
+    /**
+     * Parses the CSV input from the textarea and converts it into an array of player objects.
+     * Expected format: Name,Number,Shot (e.g., Connor McDavid,97,RH)
+     * Adds an 'id' for tracking.
+     */
+    function parseCSV(csvString) {
+        if (!csvString) return [];
 
-  document.addEventListener("DOMContentLoaded", function() {
-    const loadButton = document.getElementById("loadRosterBtn");
-    if (loadButton) {
-      loadButton.addEventListener("click", function() {
-        const gameIdInput = document.getElementById("gameIdInput");
-        const gameId = gameIdInput ? gameIdInput.value : "defaultGame";
-        loadRoster(gameId, function(rosterData) {
-          if (rosterData) {
-            const rosterContainer = document.getElementById("rosterContainer");
-            if (rosterContainer) {
-              rosterContainer.innerHTML = "";
-              rosterData.forEach(player => {
-                const div = document.createElement("div");
-                div.className = "player";
-                div.textContent = player.name + " #" + player.number + " (" + player.shot + ")";
-                rosterContainer.appendChild(div);
-              });
-            }
-          } else {
-            alert("No roster found for this game.");
-          }
-        });
-      });
+        const lines = csvString.trim().split('\n');
+        // Check for header and at least one data line
+        if (lines.length < 2) {
+             showModal("Roster Load Error", "Please enter player data in the format: Name,Number,Shot");
+             return [];
+        }
+
+        const headers = lines[0].split(',').map(h => h.trim());
+        const dataLines = lines.slice(1);
+
+        // Basic check for expected headers (Name, Number, Shot)
+        if (headers.length < 3 || headers[0] !== 'Name' || headers[1] !== 'Number' || headers[2] !== 'Shot') {
+             showModal("Roster Load Error", "CSV header format incorrect. Expected: Name,Number,Shot");
+             return [];
+        }
+
+        const roster = dataLines.map((line, index) => {
+            const values = line.split(',').map(v => v.trim());
+            // Filter out empty lines that might result from trailing newlines
+            if (values.length < 3 || values[0] === "") return null; 
+
+            const shot = values[2].toUpperCase();
+            
+            return {
+                id: 'player-' + Date.now() + '-' + index, // Simple unique ID
+                name: values[0] || 'Unknown Player',
+                number: values[1] ? parseInt(values[1]) : 0,
+                shot: shot, // Should be LH, RH, or G
+            };
+        }).filter(player => player !== null && player.name && (player.shot === 'LH' || player.shot === 'RH' || player.shot === 'G'));
+        
+        return roster;
     }
-  });
+
+    /**
+     * Creates the HTML element for a player card in the Available Roster list.
+     */
+    function createPlayerCard(player) {
+        const card = document.createElement('div');
+        let shotClass = 'border-gray-300'; // Default border
+        
+        // Apply custom classes based on shot/position
+        if (player.shot === 'LH') {
+            shotClass = 'is-lh';
+        } else if (player.shot === 'RH') {
+            shotClass = 'is-rh';
+        } else if (player.shot === 'G') {
+            shotClass = 'is-goalie-type'; 
+        }
+
+        card.className = `player-card p-2 rounded-lg border shadow-sm flex justify-between items-center text-sm font-medium ${shotClass}`;
+        card.setAttribute('draggable', 'true');
+        card.setAttribute('data-player-id', player.id);
+        card.setAttribute('data-player-shot', player.shot);
+
+        card.innerHTML = `
+            <span>${player.name} <span class="text-gray-500 font-normal">#${player.number}</span></span>
+            <span class="px-2 py-0.5 rounded-full text-xs font-semibold">${player.shot}</span>
+        `;
+        
+        // Setup drag start event
+        card.addEventListener('dragstart', (e) => {
+            e.dataTransfer.setData('text/plain', player.id);
+            // Hide the original card being dragged
+            setTimeout(() => card.classList.add('opacity-40'), 0);
+        });
+
+        card.addEventListener('dragend', () => {
+            // Restore opacity after the drag operation ends
+            card.classList.remove('opacity-40');
+        });
+
+        return card;
+    }
+
+    /**
+     * Renders the currentRoster array into the 'Available Roster' list.
+     */
+    function renderRoster() {
+        const rosterList = document.getElementById('roster-list');
+        const rosterCount = document.getElementById('roster-count');
+        rosterList.innerHTML = ''; // Clear existing list
+
+        currentRoster.forEach(player => {
+            rosterList.appendChild(createPlayerCard(player));
+        });
+
+        rosterCount.textContent = currentRoster.length;
+        
+        if (currentRoster.length > 0) {
+            showModal("Success!", `Roster loaded with ${currentRoster.length} players. They are ready to be dragged into the lineup.`);
+        }
+    }
+
+
+    /**
+     * Main function called by the "Load Roster" button.
+     */
+    window.loadRosterData = function() {
+        const csvInput = document.getElementById('csv-input');
+        const csvString = csvInput.value;
+
+        if (csvString.trim() === '') {
+            showModal("No Data", "Please enter player data into the text box first.");
+            return;
+        }
+
+        currentRoster = parseCSV(csvString);
+        renderRoster();
+    }
+    
+    /**
+     * Handles the "New Lineup" button click.
+     */
+    window.createNewGame = function() {
+        if (!confirm("Are you sure you want to start a new lineup? This will clear all players from the Roster and Lineup (since no saving is enabled).")) {
+            return;
+        }
+        
+        // Clear the roster list
+        currentRoster = [];
+        renderRoster();
+        
+        // Clear the lineup slots
+        document.querySelectorAll('.lineup-slot').forEach(slot => {
+            // Reset to its original state (text content from data-position)
+            slot.innerHTML = slot.getAttribute('data-position') + ' Slot';
+            // You may need more specific logic if you want to keep the F1-LW etc text
+            setupLineupSlots(); // Rerun setup to restore default labels
+        });
+
+        showModal("Lineup Cleared", "The roster and lineup have been reset.");
+    }
+    
+    // --- Modal/Message Functions ---
+    const modal = document.getElementById('message-modal');
+    const modalTitle = document.getElementById('modal-title');
+    const modalMessage = document.getElementById('modal-message');
+
+    function showModal(title, message) {
+        modalTitle.textContent = title;
+        modalMessage.textContent = message;
+        modal.classList.remove('hidden');
+        modal.classList.add('flex');
+    }
+
+    window.closeModal = function() {
+        modal.classList.add('hidden');
+        modal.classList.remove('flex');
+    }
+    
+    // --- Lineup Slot Setup (Drag/Drop Logic) ---
+    function setupLineupSlots() {
+        // Clear previous slots
+        document.getElementById('forward-lines').innerHTML = '';
+        document.getElementById('defense-lines').innerHTML = '';
+        document.getElementById('goalie-line').innerHTML = '';
+
+        // Define slot structures
+        const lineupStructure = {
+            'forward-lines': [
+                ['F1-LW', 'F1-C', 'F1-RW'], ['F2-LW', 'F2-C', 'F2-RW'], 
+                ['F3-LW', 'F3-C', 'F3-RW'], ['F4-LW', 'F4-C', 'F4-RW']
+            ],
+            'defense-lines': [
+                ['D1-LD', 'D1-RD'], ['D2-LD', 'D2-RD'], ['D3-LD', 'D3-RD']
+            ],
+            'goalie-line': [
+                ['G-G'] 
+            ]
+        };
+
+        // Render slots
+        for (const [containerId, lines] of Object.entries(lineupStructure)) {
+            const container = document.getElementById(containerId);
+            lines.forEach(lineSlots => {
+                const lineDiv = document.createElement('div');
+                lineDiv.className = `grid grid-cols-${lineSlots.length} gap-4 border-b border-gray-200 py-2`;
+                
+                lineSlots.forEach(slotLabel => {
+                    const slot = document.createElement('div');
+                    slot.className = 'lineup-slot p-3 border-2 border-dashed border-gray-300 rounded-lg text-center text-gray-500 font-normal';
+                    slot.setAttribute('data-slot-label', slotLabel);
+                    slot.textContent = slotLabel;
+                    lineDiv.appendChild(slot);
+                    
+                    // Add drag/drop listeners
+                    slot.addEventListener('dragover', (e) => {
+                        e.preventDefault(); 
+                        slot.classList.add('drag-over');
+                    });
+
+                    slot.addEventListener('dragleave', () => {
+                        slot.classList.remove('drag-over');
+                    });
+
+                    slot.addEventListener('drop', (e) => {
+                        e.preventDefault();
+                        slot.classList.remove('drag-over');
+                        
+                        const playerId = e.dataTransfer.getData('text/plain');
+                        const draggedElement = document.querySelector(`[data-player-id="${playerId}"]`);
+                        
+                        if (draggedElement) {
+                            // Check if the slot is empty
+                            if (slot.querySelector('.player-card')) {
+                                showModal("Slot Full", "This lineup slot is already occupied.");
+                                return;
+                            }
+
+                            // Remove the player from the Roster list
+                            draggedElement.remove();
+                            
+                            // Clone and modify the card for the lineup slot
+                            const lineupCard = draggedElement.cloneNode(true);
+                            lineupCard.setAttribute('draggable', 'false'); 
+                            
+                            // Change the slot content to the new player card
+                            slot.innerHTML = '';
+                            slot.appendChild(lineupCard);
+                        }
+                    });
+                });
+                container.appendChild(lineDiv);
+            });
+        }
+    }
+
+    // --- Initialization ---
+    document.addEventListener("DOMContentLoaded", function() {
+        // 1. Setup the Lineup slots with drop targets
+        setupLineupSlots();
+    });
+
 </script>
 </body>
 </html>
