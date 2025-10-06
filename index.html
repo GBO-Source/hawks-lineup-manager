@@ -153,7 +153,7 @@
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { getFirestore, doc, setDoc, onSnapshot, collection, query } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
         import { setLogLevel } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
@@ -182,10 +182,20 @@ Oliver,4,RH
 Rowan,2,RH
 Sam,16,LH
 `;
+        
+        // 🚨 START: FIREBASE CONFIGURATION (Provided by User) 🚨
+        const firebaseConfig = {
+            apiKey: "AIzaSyBzllQwWzoCtCp5sPG_KMhYNeqM9VE29h4",
+            authDomain: "hawks-503-lineup-manager.firebaseapp.com",
+            projectId: "hawks-503-lineup-manager",
+            storageBucket: "hawks-503-lineup-manager.firebasestorage.app",
+            messagingSenderId: "861896159627",
+            appId: "1:861896159627:web:2f9973c95e484ed6ccbf8e"
+        };
+        // 🚨 END: FIREBASE CONFIGURATION 🚨
 
-        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : null;
-        const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
-        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+        // Use a fixed ID for external public deployment, as the Canvas variable is not available.
+        const appId = 'hawks-lineup-public-id'; 
 
         let app;
         let db;
@@ -256,9 +266,9 @@ Sam,16,LH
          * Initializes Firebase and sets up authentication listener.
          */
         const initializeFirebase = async () => {
-            if (!firebaseConfig) {
-                console.error("Firebase config not available.");
-                showModal("Configuration Error", "Firebase configuration is missing. Cannot save games.");
+            if (!firebaseConfig.projectId || firebaseConfig.projectId.includes("YOUR_PROJECT_ID")) {
+                console.error("Firebase config not available or incomplete.");
+                showModal("Configuration Error", "Firebase configuration is missing or invalid. Please check the code and replace the placeholder with your config.");
                 loadRosterFromCSV(DEFAULT_ROSTER_CSV, true);
                 return;
             }
@@ -267,21 +277,16 @@ Sam,16,LH
                 app = initializeApp(firebaseConfig);
                 db = getFirestore(app);
                 auth = getAuth(app);
-                document.getElementById('app-id-display').textContent = `App ID: ${appId}`;
+                document.getElementById('app-id-display').textContent = `App ID: ${appId} (Public Data)`;
 
-                // Sign in with custom token or anonymously
-                if (initialAuthToken) {
-                    await signInWithCustomToken(auth, initialAuthToken);
-                    console.log("Signed in with custom token.");
-                } else {
-                    await signInAnonymously(auth);
-                    console.log("Signed in anonymously.");
-                }
-
+                // Since we are externally hosted, we sign in anonymously for public data access.
+                await signInAnonymously(auth);
+                console.log("Signed in anonymously.");
+                
                 onAuthStateChanged(auth, (user) => {
                     if (user) {
                         userId = user.uid;
-                        document.getElementById('user-id-display').textContent = `User ID: ${userId}`;
+                        document.getElementById('user-id-display').textContent = `User ID: ${userId.substring(0, 8)}...`;
                         isAuthReady = true;
                         console.log("Auth state ready. User ID:", userId);
                         // Start listeners after auth is ready
@@ -290,7 +295,7 @@ Sam,16,LH
                         userId = 'anon';
                         document.getElementById('user-id-display').textContent = `User ID: anon`;
                         isAuthReady = true;
-                        setupGameListener(); // Still try to load default if offline
+                        setupGameListener(); 
                     }
                 });
             } catch (error) {
@@ -306,6 +311,7 @@ Sam,16,LH
          * Gets the collection reference for public game data.
          */
         const getGamesCollectionRef = () => {
+            // Public path using the fixed appId
             return collection(db, `artifacts/${appId}/public/data/hockey_lineups_shot`);
         };
 
@@ -329,16 +335,26 @@ Sam,16,LH
                 console.log("Loaded all game templates:", allGames.length);
 
                 if (allGames.length > 0) {
-                    // Load the first saved game
-                    if (!currentGameId) selectGame(allGames[0].id);
+                    // Load the first saved game or the currently selected one
+                    if (!currentGameId || !allGames.some(g => g.id === currentGameId)) {
+                        selectGame(allGames[0].id);
+                    } else {
+                        selectGame(currentGameId); // Re-select to update data
+                    }
                 } else {
                     // If no saved games, initialize with a new game and the default roster
-                    createNewGame();
-                    loadRosterFromCSV(DEFAULT_ROSTER_CSV, true); // Load default roster into the new game
+                    if (masterRoster.length === 0) {
+                        loadRosterFromCSV(DEFAULT_ROSTER_CSV, true); 
+                    }
+                    if (!currentGameId) {
+                         createNewGame();
+                    } else {
+                        renderAll(); // If game ID exists but no remote data, just render local
+                    }
                 }
             }, (error) => {
                 console.error("Error fetching games:", error);
-                showModal("Data Error", "Failed to fetch saved games. Loading default roster.");
+                showModal("Data Error", "Failed to fetch saved games. Check your Firebase security rules.");
                 loadRosterFromCSV(DEFAULT_ROSTER_CSV, true);
             });
         };
@@ -352,12 +368,19 @@ Sam,16,LH
                 return;
             }
 
+            const gameSelector = document.getElementById('game-selector');
+            const gameName = gameSelector.querySelector(`option[value="${currentGameId}"]`) ? 
+                             gameSelector.querySelector(`option[value="${currentGameId}"]`).textContent : 
+                             `Game ${currentGameId.substring(0, 8)}`;
+
+
             const gameData = {
                 id: currentGameId,
-                name: document.getElementById('game-selector').querySelector(`option[value="${currentGameId}"]`).textContent,
+                name: gameName,
                 masterRoster: masterRoster,
                 lineup: currentLineup,
                 availableRoster: availableRoster,
+                updatedBy: userId,
                 updatedAt: new Date().toISOString()
             };
 
@@ -367,7 +390,7 @@ Sam,16,LH
                 showModal("Success!", `Lineup "${gameData.name}" saved successfully.`);
             } catch (error) {
                 console.error("Error saving game:", error);
-                showModal("Save Error", "Failed to save the lineup. Check console for details.");
+                showModal("Save Error", "Failed to save the lineup. This might be due to missing Firebase setup or security rules.");
             }
         };
 
@@ -395,7 +418,7 @@ Sam,16,LH
             };
             availableRoster = [...masterRoster];
 
-            // Add new option to selector and select it
+            // Add new option to selector and select it (locally)
             const newGameData = {
                 id: newGameId,
                 name: newGameName,
@@ -463,7 +486,7 @@ Sam,16,LH
                 const number = parts[1] ? parts[1].trim() : 'N/A'; // Number is index 1
                 const shot = parts[2].toUpperCase(); // Shot is index 2
 
-                if (name && validShots.includes(shot)) {
+                if (name && (validShots.includes(shot) || shot === 'G')) {
                     players.push({
                         id: generateUUID(),
                         name: name,
@@ -491,7 +514,7 @@ Sam,16,LH
             const players = parseRosterCSV(csvText);
 
             if (players.length === 0) {
-                if (!isDefaultLoad) showModal("Roster Error", "No valid players found. Ensure format is 'Name, Number, Shot (LH/RH)'.");
+                if (!isDefaultLoad) showModal("Roster Error", "No valid players found. Ensure format is 'Name, Number, Shot (LH/RH or G)'.");
                 return;
             }
 
@@ -552,8 +575,8 @@ Sam,16,LH
          * @returns {HTMLElement}
          */
         const createPlayerCard = (player) => {
-            // Simple heuristic for goalie: check name/number for typical goalie characteristics
-            const isGoalie = player.number === '1'; // A common low goalie number
+            // Heuristic for goalie: check the shot type
+            const isGoalie = player.shot === 'G'; 
             const colorClass = isGoalie ? 'is-goalie-type' : (player.shot === 'LH' ? 'is-lh' : 'is-rh');
 
             const card = document.createElement('div');
@@ -564,7 +587,7 @@ Sam,16,LH
             card.innerHTML = `
                 <span class="flex-grow text-gray-900 truncate">${player.name}</span>
                 <div class="flex items-center space-x-3">
-                    <!-- Shot Badge (Smaller) -->
+                    <!-- Shot/Position Badge (Smaller) -->
                     <span class="px-2 py-0.5 text-xs font-bold rounded-full bg-white bg-opacity-80 shadow-inner">${player.shot}</span>
                     <!-- Number (Prominent) -->
                     <span class="text-xl font-extrabold text-gray-800">${player.number}</span>
@@ -774,8 +797,6 @@ Sam,16,LH
 
                 // 3. Place new player in the target slot
                 placePlayerInLineupSlot(targetSlotId, playerToMove);
-
-                // Shot matching warning has been removed as requested.
 
                 renderAll();
             } catch (error) {
