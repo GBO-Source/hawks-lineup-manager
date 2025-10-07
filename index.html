@@ -141,12 +141,19 @@ Carey Price,31,G
     let currentRoster = []; // The complete list of available players
     let currentLineupId = ''; // The unique ID of the currently loaded/new lineup
     let db, auth, userId;
+    let isAuthReady = false; // NEW: Flag to ensure Firestore operations wait for authentication
     const lineupStructure = {}; // Holds the structure of the slots
     const lineupContainerIds = ['forward-lines', 'defense-lines', 'goalie-line'];
 
-    // Global variables from Canvas environment
+    // Safely retrieve and parse global variables from Canvas environment
     const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
-    const firebaseConfig = JSON.parse(typeof __firebase_config !== 'undefined' ? __firebase_config : '{}');
+    let firebaseConfig = {};
+    try {
+        firebaseConfig = JSON.parse(typeof __firebase_config !== 'undefined' ? __firebase_config : '{}');
+    } catch (e) {
+        console.error("Failed to parse __firebase_config:", e);
+        // Fallback or explicit error handled below
+    }
 
     // --- Firebase & Auth Setup ---
 
@@ -154,6 +161,12 @@ Carey Price,31,G
      * Initializes Firebase and handles authentication.
      */
     async function initializeFirebase() {
+        if (Object.keys(firebaseConfig).length === 0) {
+            document.getElementById('storage-info').textContent = "ERROR: Firebase config is missing or invalid.";
+            console.error("FATAL ERROR: Firebase configuration is empty.");
+            return;
+        }
+
         try {
             const app = initializeApp(firebaseConfig);
             db = getFirestore(app);
@@ -173,17 +186,19 @@ Carey Price,31,G
             onAuthStateChanged(auth, (user) => {
                 if (user) {
                     userId = user.uid;
+                    isAuthReady = true; // Set flag when user is identified
                     document.getElementById('storage-info').innerHTML = 
-                        `<span class="font-bold text-green-700">Data saved to Firestore</span> | User ID: ${userId}`;
+                        `<span class="font-bold text-green-700">Data saved to Firestore</span> | User ID: ${userId.substring(0, 8)}...`;
                     loadLineupList();
                 } else {
+                    isAuthReady = false;
                     document.getElementById('storage-info').textContent = "Not authenticated.";
                 }
             });
 
         } catch (error) {
             console.error("Firebase Init/Auth Error:", error);
-            showModal("Connection Error", "Failed to connect to Firebase services. Check the console for details.");
+            showModal("Connection Error", "Failed to connect to Firebase services. See console for details.");
         }
     }
     
@@ -193,6 +208,11 @@ Carey Price,31,G
      * Gets the collection reference for the public lineups.
      */
     function getLineupsCollectionRef() {
+        if (!isAuthReady || !db) {
+            console.error("Attempted to get collection ref before auth was ready.");
+            return null;
+        }
+        // Public data path: /artifacts/{appId}/public/data/lineups
         return collection(db, 'artifacts', appId, 'public', 'data', 'lineups');
     }
 
@@ -200,6 +220,10 @@ Carey Price,31,G
      * Gets the document reference for a specific lineup ID.
      */
     function getLineupDocRef(lineupId) {
+        if (!isAuthReady || !db) {
+            console.error("Attempted to get document ref before auth was ready.");
+            return null;
+        }
         return doc(db, 'artifacts', appId, 'public', 'data', 'lineups', lineupId);
     }
 
@@ -213,7 +237,8 @@ Carey Price,31,G
         const lineupState = {};
         document.querySelectorAll('.lineup-slot').forEach(slot => {
             const slotLabel = slot.getAttribute('data-slot-label');
-            const playerCard = slot.querySelector('.player-card');
+            // Look for the player-card element directly inside the slot
+            const playerCard = slot.querySelector('.player-card'); 
             
             if (playerCard) {
                 lineupState[slotLabel] = playerCard.getAttribute('data-player-id');
@@ -228,23 +253,30 @@ Carey Price,31,G
      * Saves the current roster and lineup state to Firestore.
      */
     window.saveLineup = async function() {
-        if (!userId || !currentLineupId) {
-            showModal("Save Error", "Please load a roster and select/create a lineup first.");
+        if (!isAuthReady) {
+             showModal("Wait", "Please wait for Firebase initialization to complete.");
+             return;
+        }
+        if (!currentLineupId || !currentRoster || currentRoster.length === 0) {
+            showModal("Save Error", "Please create a lineup, load a roster, and assign players before saving.");
             return;
         }
 
         const lineupData = {
             id: currentLineupId,
             name: document.getElementById('current-lineup-name').textContent,
-            roster: currentRoster, // Save the full roster
-            lineup: getCurrentLineupState(), // Save the state of the lineup slots
+            roster: currentRoster, 
+            lineup: getCurrentLineupState(), 
             lastUpdated: new Date().toISOString()
         };
 
         try {
-            await setDoc(getLineupDocRef(currentLineupId), lineupData);
-            loadLineupList(); // Refresh the list in case this was a new save
-            showModal("Success", `Lineup "${lineupData.name}" saved to Firestore.`);
+            const docRef = getLineupDocRef(currentLineupId);
+            if (docRef) {
+                await setDoc(docRef, lineupData);
+                loadLineupList(); 
+                showModal("Success", `Lineup "${lineupData.name}" saved to Firestore.`);
+            }
         } catch (error) {
             console.error("Firestore Save Error:", error);
             showModal("Error Saving", "Failed to save lineup data. Check console for details.");
@@ -255,17 +287,24 @@ Carey Price,31,G
      * Loads the list of available lineups from Firestore into the selector.
      */
     async function loadLineupList() {
+        if (!isAuthReady) return; // Prevent calls before auth is ready
+
         const selector = document.getElementById('game-selector');
         selector.innerHTML = '<option value="" disabled selected>Select or create a lineup...</option>';
+        const colRef = getLineupsCollectionRef();
+        if (!colRef) return;
 
         try {
-            const querySnapshot = await getDocs(getLineupsCollectionRef());
+            const querySnapshot = await getDocs(colRef);
             querySnapshot.forEach((doc) => {
                 const data = doc.data();
                 const option = document.createElement('option');
-                option.value = data.id;
-                option.textContent = data.name;
-                selector.appendChild(option);
+                // NEW: Ensure all necessary fields exist
+                if (data.id && data.name) { 
+                    option.value = data.id;
+                    option.textContent = data.name;
+                    selector.appendChild(option);
+                }
             });
             
             // Re-select the currently loaded lineup if it exists
@@ -281,28 +320,43 @@ Carey Price,31,G
      * Loads the lineup selected in the dropdown.
      */
     window.loadSelectedLineup = async function() {
+        if (!isAuthReady) {
+             showModal("Wait", "Please wait for Firebase initialization to complete.");
+             return;
+        }
+
         const selector = document.getElementById('game-selector');
         const lineupId = selector.value;
 
         if (!lineupId) return;
 
         try {
-            const docSnap = await getDoc(getLineupDocRef(lineupId));
+            const docRef = getLineupDocRef(lineupId);
+            if (!docRef) return;
+
+            const docSnap = await getDoc(docRef);
             if (docSnap.exists()) {
                 const data = docSnap.data();
                 
+                // NEW: Use safe defaults for data integrity
+                currentRoster = data.roster || [];
+                const lineupState = data.lineup || {};
+                
+                if (currentRoster.length === 0) {
+                     showModal("Roster Warning", "The loaded lineup has no roster data. Please load a roster via CSV.");
+                }
+
                 // 1. Update state
                 currentLineupId = data.id;
-                currentRoster = data.roster || [];
                 
                 // 2. Render Roster (This populates the left panel)
                 renderRoster();
 
                 // 3. Render Lineup (This populates the slots)
-                clearLineupSlots(); // Clear before repopulating
-                renderLineup(data.lineup || {});
+                clearLineupSlots(); 
+                renderLineup(lineupState);
                 
-                document.getElementById('current-lineup-name').textContent = data.name;
+                document.getElementById('current-lineup-name').textContent = data.name || "Untitled Lineup";
                 
                 showModal("Lineup Loaded", `Lineup "${data.name}" loaded successfully.`);
 
@@ -319,12 +373,20 @@ Carey Price,31,G
      * Prompts the user for a new lineup name and resets the UI.
      */
     window.createNewGame = function() {
+        if (!isAuthReady) {
+             showModal("Wait", "Please wait for Firebase initialization to complete.");
+             return;
+        }
+
         const lineupName = prompt("Enter a name for the new lineup:");
-        if (lineupName) {
-            currentLineupId = crypto.randomUUID(); // Unique ID for the new lineup
-            document.getElementById('current-lineup-name').textContent = lineupName;
+        if (lineupName && lineupName.trim() !== '') {
+            currentLineupId = crypto.randomUUID(); 
+            document.getElementById('current-lineup-name').textContent = lineupName.trim();
             
-            currentRoster = [];
+            // Use the roster currently in the CSV box as a starting point if available
+            const csvInput = document.getElementById('csv-input');
+            currentRoster = parseCSV(csvInput.value); // Re-parse for new game
+
             renderRoster();
             clearLineupSlots();
             
@@ -332,7 +394,9 @@ Carey Price,31,G
             const selector = document.getElementById('game-selector');
             selector.value = ''; // Deselect any option
             
-            showModal("New Lineup Created", `Start assembling your new lineup: "${lineupName}". Click 'Save Lineup' when finished.`);
+            showModal("New Lineup Created", `Start assembling your new lineup: "${lineupName.trim()}". Click 'Save Lineup' when finished.`);
+        } else if (lineupName !== null) {
+            showModal("Invalid Name", "Lineup name cannot be empty.");
         }
     }
     
@@ -342,32 +406,35 @@ Carey Price,31,G
      * Parses the CSV input from the textarea and converts it into an array of player objects.
      */
     function parseCSV(csvString) {
-        // ... (Logic remains similar to previous version)
         if (!csvString) return [];
         const lines = csvString.trim().split('\n');
         if (lines.length < 2) {
-             showModal("Roster Load Error", "Please enter player data in the format: Name,Number,Shot");
+             // Don't show modal here as it can be called internally on a new game
              return [];
         }
 
         const headers = lines[0].split(',').map(h => h.trim());
         const dataLines = lines.slice(1);
-        if (headers.length < 3 || headers[0] !== 'Name' || headers[1] !== 'Number' || headers[2] !== 'Shot') {
+        if (headers.length < 3 || headers[0].toLowerCase() !== 'name' || headers[1].toLowerCase() !== 'number' || headers[2].toLowerCase() !== 'shot') {
              showModal("Roster Load Error", "CSV header format incorrect. Expected: Name,Number,Shot");
              return [];
         }
 
-        const roster = dataLines.map((line, index) => {
+        const roster = dataLines.map((line) => {
             const values = line.split(',').map(v => v.trim());
             if (values.length < 3 || values[0] === "") return null; 
 
             const shot = values[2].toUpperCase();
             
+            // Use a stable ID if possible, otherwise generate a new one (prevents ID collision when re-parsing)
+            const stableId = values.join('|').replace(/[^a-zA-Z0-9|]/g, ''); 
+            
             return {
-                id: 'player-' + crypto.randomUUID(), // Always ensure unique ID on new parse
+                // Generate a consistent ID based on player data for predictable roster loading
+                id: 'player-' + stableId, 
                 name: values[0] || 'Unknown Player',
                 number: values[1] ? parseInt(values[1]) : 0,
-                shot: shot, // Should be LH, RH, or G
+                shot: shot, 
             };
         }).filter(player => player !== null && player.name && (player.shot === 'LH' || player.shot === 'RH' || player.shot === 'G'));
         
@@ -393,6 +460,10 @@ Carey Price,31,G
 
         currentRoster = parseCSV(csvString);
         renderRoster();
+        // After loading a new roster, clear the lineup slots to reflect the new set of players,
+        // preventing display of players who might have been removed from the roster.
+        clearLineupSlots(); 
+        showModal("Roster Updated", "Roster loaded successfully. Drag players to their slots.");
     }
     
     // --- UI Rendering ---
@@ -400,7 +471,7 @@ Carey Price,31,G
     /**
      * Creates the HTML element for a player card.
      */
-    function createPlayerCard(player, isDraggable = true) {
+    function createPlayerCard(player) {
         const card = document.createElement('div');
         let shotClass = 'border-gray-300';
         
@@ -413,7 +484,7 @@ Carey Price,31,G
         }
 
         card.className = `player-card p-2 rounded-lg border shadow-sm flex justify-between items-center text-sm font-medium ${shotClass}`;
-        card.setAttribute('draggable', isDraggable);
+        card.setAttribute('draggable', true); // ALL cards created here are draggable
         card.setAttribute('data-player-id', player.id);
         card.setAttribute('data-player-shot', player.shot);
 
@@ -422,15 +493,14 @@ Carey Price,31,G
             <span class="px-2 py-0.5 rounded-full text-xs font-semibold">${player.shot}</span>
         `;
         
-        if (isDraggable) {
-            card.addEventListener('dragstart', (e) => {
-                e.dataTransfer.setData('text/plain', player.id);
-                setTimeout(() => card.classList.add('opacity-40'), 0);
-            });
-            card.addEventListener('dragend', () => {
-                card.classList.remove('opacity-40');
-            });
-        }
+        card.addEventListener('dragstart', (e) => {
+            e.dataTransfer.setData('text/plain', player.id);
+            // Add a class to hide the original card temporarily during drag
+            setTimeout(() => card.classList.add('opacity-40'), 0);
+        });
+        card.addEventListener('dragend', () => {
+            card.classList.remove('opacity-40');
+        });
         
         return card;
     }
@@ -449,7 +519,7 @@ Carey Price,31,G
         currentRoster.forEach(player => {
             // Only add players to the available list if they are NOT in a lineup slot
             if (!lineupPlayerIds.has(player.id)) {
-                rosterList.appendChild(createPlayerCard(player, true));
+                rosterList.appendChild(createPlayerCard(player)); // Always draggable
             }
         });
 
@@ -469,18 +539,23 @@ Carey Price,31,G
      * Renders the saved lineup state into the slots.
      */
     function renderLineup(lineupState) {
+        // Iterate over the saved lineup state
         for (const [slotLabel, playerId] of Object.entries(lineupState)) {
             if (playerId) {
                 const player = currentRoster.find(p => p.id === playerId);
                 const slot = document.querySelector(`[data-slot-label="${slotLabel}"]`);
 
                 if (player && slot) {
-                    const lineupCard = createPlayerCard(player, false); // Not draggable from slot
+                    const lineupCard = createPlayerCard(player); // The card in the slot is also draggable
                     slot.innerHTML = '';
                     slot.appendChild(lineupCard);
+                } else if (!player && slot) {
+                    // Player ID existed in the lineup but is missing from the roster, clear the slot
+                    slot.innerHTML = slot.getAttribute('data-slot-label');
                 }
             }
         }
+        renderRoster(); // Update the available roster list after filling the slots
     }
     
     /**
@@ -497,10 +572,9 @@ Carey Price,31,G
             const container = document.getElementById(containerId);
             for (let line = 1; line <= details.lines; line++) {
                 const lineDiv = document.createElement('div');
-                // Use grid-cols dynamically based on the number of positions in the line/pair
                 lineDiv.className = `grid grid-cols-${details.cols} gap-4 border-b border-gray-200 py-2`;
                 
-                details.labels.forEach((label, index) => {
+                details.labels.forEach((label) => {
                     const slotLabel = containerId === 'goalie-line' ? label : (line + "-" + label);
                     
                     const slot = document.createElement('div');
@@ -526,27 +600,65 @@ Carey Price,31,G
                         slot.classList.remove('drag-over');
                         
                         const playerId = e.dataTransfer.getData('text/plain');
-                        const player = currentRoster.find(p => p.id === playerId);
+                        const draggedElement = document.querySelector(`[data-player-id="${playerId}"]`);
                         
-                        if (player) {
-                            // Check if the slot is empty
-                            if (slot.querySelector('.player-card')) {
-                                showModal("Slot Full", "This lineup slot is already occupied.");
+                        if (!draggedElement) return;
+
+                        // Check if the source element was from inside a slot (i.e., moving a player)
+                        const sourceSlot = draggedElement.closest('.lineup-slot');
+
+                        // Check if the drop target is already occupied
+                        if (slot.querySelector('.player-card')) {
+                            // If source and target are different slots, swap them
+                            if (sourceSlot && sourceSlot !== slot) {
+                                const targetCard = slot.querySelector('.player-card');
+                                
+                                // Swap logic: move card from slot to sourceSlot, and dragged element to slot
+                                slot.innerHTML = '';
+                                sourceSlot.innerHTML = '';
+                                
+                                sourceSlot.appendChild(targetCard);
+                                slot.appendChild(draggedElement);
+
+                                // The dragged element might be outside the roster, so we need to fix its opacity manually
+                                draggedElement.classList.remove('opacity-40');
+                                
+                                // Swap complete, no need to touch roster
+                                return;
+                            } else {
+                                // Dropping onto the same occupied slot (or just dropping a new player onto an occupied slot)
+                                showModal("Slot Full", "This lineup slot is already occupied. Drag the existing player out first, or swap players.");
+                                draggedElement.classList.remove('opacity-40');
                                 return;
                             }
+                        } 
+                        
+                        // Drop onto an empty slot
+                        if (sourceSlot) {
+                            // Moving from one slot to an empty slot, just clear the source slot
+                            sourceSlot.innerHTML = sourceSlot.getAttribute('data-slot-label');
+                        } else {
+                            // Moving from roster to slot (The draggedElement is still a clone from roster-list)
+                            // We need to find the original player object to create a fresh, permanent card in the slot
+                            const player = currentRoster.find(p => p.id === playerId);
+                            if (player) {
+                                const lineupCard = createPlayerCard(player);
+                                slot.innerHTML = '';
+                                slot.appendChild(lineupCard);
+                            }
+                        }
 
-                            // 1. Remove the player from the Available Roster list
-                            const draggedElement = document.querySelector(`#roster-list [data-player-id="${playerId}"]`);
-                            if (draggedElement) draggedElement.remove();
-
-                            // 2. Clone and place the card in the lineup slot
-                            const lineupCard = createPlayerCard(player, false); 
-                            
-                            slot.innerHTML = '';
-                            slot.appendChild(lineupCard);
-
-                            // 3. Re-render roster list to update count
-                            renderRoster(); 
+                        // Always ensure the opacity is fixed and the roster/count is updated
+                        draggedElement.classList.remove('opacity-40');
+                        renderRoster(); // Updates the roster panel and count based on new state
+                    });
+                    
+                    // Add a click listener to remove player from slot and return to roster
+                    slot.addEventListener('click', (e) => {
+                        const card = e.currentTarget.querySelector('.player-card');
+                        if (card) {
+                            e.currentTarget.innerHTML = e.currentTarget.getAttribute('data-slot-label');
+                            renderRoster(); // Re-render to put the player back in the available list
                         }
                     });
                 });
