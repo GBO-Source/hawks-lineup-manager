@@ -171,16 +171,46 @@ Goalie Default,30,LH`;
         let masterRoster = [];
         let availableRoster = [];
         
+        // UPDATED LINEUP STRUCTURE TO AVOID NESTED ARRAYS FOR FIREBASE COMPATIBILITY
         let currentLineup = {
-            forwards: Array(4).fill(null).map(() => ([
-                {role: 'Left Forward', roleId: 'LF', player: null},
-                {role: 'Center Forward', roleId: 'CF', player: null},
-                {role: 'Right Forward', roleId: 'RF', player: null}
-            ])),
-            defense: Array(3).fill(null).map(() => ([
-                {role: 'Left Defense', roleId: 'LD', player: null},
-                {role: 'Right Defense', roleId: 'RD', player: null}
-            ])),
+            // Forwards: Keyed by line number (1-4)
+            forwards: {
+                'Line1': {
+                    LF: {role: 'Left Forward', roleId: 'LF', player: null},
+                    CF: {role: 'Center Forward', roleId: 'CF', player: null},
+                    RF: {role: 'Right Forward', roleId: 'RF', player: null}
+                },
+                'Line2': {
+                    LF: {role: 'Left Forward', roleId: 'LF', player: null},
+                    CF: {role: 'Center Forward', roleId: 'CF', player: null},
+                    RF: {role: 'Right Forward', roleId: 'RF', player: null}
+                },
+                'Line3': {
+                    LF: {role: 'Left Forward', roleId: 'LF', player: null},
+                    CF: {role: 'Center Forward', roleId: 'CF', player: null},
+                    RF: {role: 'Right Forward', roleId: 'RF', player: null}
+                },
+                'Line4': {
+                    LF: {role: 'Left Forward', roleId: 'LF', player: null},
+                    CF: {role: 'Center Forward', roleId: 'CF', player: null},
+                    RF: {role: 'Right Forward', roleId: 'RF', player: null}
+                }
+            },
+            // Defense: Keyed by pair number (1-3)
+            defense: {
+                'Pair1': {
+                    LD: {role: 'Left Defense', roleId: 'LD', player: null},
+                    RD: {role: 'Right Defense', roleId: 'RD', player: null}
+                },
+                'Pair2': {
+                    LD: {role: 'Left Defense', roleId: 'LD', player: null},
+                    RD: {role: 'Right Defense', roleId: 'RD', player: null}
+                },
+                'Pair3': {
+                    LD: {role: 'Left Defense', roleId: 'LD', player: null},
+                    RD: {role: 'Right Defense', roleId: 'RD', player: null}
+                }
+            },
             goalie: {role: 'Goalie', roleId: 'G', player: null}
         };
 
@@ -331,16 +361,20 @@ Goalie Default,30,LH`;
             const newGameName = `New Game - ${timestamp}`;
 
             currentGameId = newGameId;
+            
+            // Use the object structure for a new game
             currentLineup = {
-                forwards: Array(4).fill(null).map(() => ([
-                    {role: 'Left Forward', roleId: 'LF', player: null},
-                    {role: 'Center Forward', roleId: 'CF', player: null},
-                    {role: 'Right Forward', roleId: 'RF', player: null}
-                ])),
-                defense: Array(3).fill(null).map(() => ([
-                    {role: 'Left Defense', roleId: 'LD', player: null},
-                    {role: 'Right Defense', roleId: 'RD', player: null}
-                ])),
+                forwards: {
+                    'Line1': { LF: { role: 'Left Forward', roleId: 'LF', player: null }, CF: { role: 'Center Forward', roleId: 'CF', player: null }, RF: { role: 'Right Forward', roleId: 'RF', player: null } },
+                    'Line2': { LF: { role: 'Left Forward', roleId: 'LF', player: null }, CF: { role: 'Center Forward', roleId: 'CF', player: null }, RF: { role: 'Right Forward', roleId: 'RF', player: null } },
+                    'Line3': { LF: { role: 'Left Forward', roleId: 'LF', player: null }, CF: { role: 'Center Forward', roleId: 'CF', player: null }, RF: { role: 'Right Forward', roleId: 'RF', player: null } },
+                    'Line4': { LF: { role: 'Left Forward', roleId: 'LF', player: null }, CF: { role: 'Center Forward', roleId: 'CF', player: null }, RF: { role: 'Right Forward', roleId: 'RF', player: null } }
+                },
+                defense: {
+                    'Pair1': { LD: { role: 'Left Defense', roleId: 'LD', player: null }, RD: { role: 'Right Defense', roleId: 'RD', player: null } },
+                    'Pair2': { LD: { role: 'Left Defense', roleId: 'LD', player: null }, RD: { role: 'Right Defense', roleId: 'RD', player: null } },
+                    'Pair3': { LD: { role: 'Left Defense', roleId: 'LD', player: null }, RD: { role: 'Right Defense', roleId: 'RD', player: null } }
+                },
                 goalie: {role: 'Goalie', roleId: 'G', player: null}
             };
             availableRoster = [...masterRoster];
@@ -435,16 +469,19 @@ Goalie Default,30,LH`;
                 availableRoster = [...masterRoster];
 
                 if (currentGameId) {
+                    // Reset lineup using object structure
                     currentLineup = {
-                        forwards: Array(4).fill(null).map(() => ([
-                            {role: 'Left Forward', roleId: 'LF', player: null},
-                            {role: 'Center Forward', roleId: 'CF', player: null},
-                            {role: 'Right Forward', roleId: 'RF', player: null}
-                        ])),
-                        defense: Array(3).fill(null).map(() => ([
-                            {role: 'Left Defense', roleId: 'LD', player: null},
-                            {role: 'Right Defense', roleId: 'RD', player: null}
-                        ])),
+                        forwards: {
+                            'Line1': { LF: { role: 'Left Forward', roleId: 'LF', player: null }, CF: { role: 'Center Forward', roleId: 'CF', player: null }, RF: { role: 'Right Forward', roleId: 'RF', player: null } },
+                            'Line2': { LF: { role: 'Left Forward', roleId: 'LF', player: null }, CF: { role: 'Center Forward', roleId: 'CF', player: null }, RF: { role: 'Right Forward', roleId: 'RF', player: null } },
+                            'Line3': { LF: { role: 'Left Forward', roleId: 'LF', player: null }, CF: { role: 'Center Forward', roleId: 'CF', player: null }, RF: { role: 'Right Forward', roleId: 'RF', player: null } },
+                            'Line4': { LF: { role: 'Left Forward', roleId: 'LF', player: null }, CF: { role: 'Center Forward', roleId: 'CF', player: null }, RF: { role: 'Right Forward', roleId: 'RF', player: null } }
+                        },
+                        defense: {
+                            'Pair1': { LD: { role: 'Left Defense', roleId: 'LD', player: null }, RD: { role: 'Right Defense', roleId: 'RD', player: null } },
+                            'Pair2': { LD: { role: 'Left Defense', roleId: 'LD', player: null }, RD: { role: 'Right Defense', roleId: 'RD', player: null } },
+                            'Pair3': { LD: { role: 'Left Defense', roleId: 'LD', player: null }, RD: { role: 'Right Defense', roleId: 'RD', player: null } }
+                        },
                         goalie: {role: 'Goalie', roleId: 'G', player: null}
                     };
                 }
@@ -537,11 +574,12 @@ Goalie Default,30,LH`;
             rosterCountEl.textContent = availableRoster.length;
         };
 
+        // UPDATED renderForwardLines
         const renderForwardLines = () => {
-            forwardLinesEl.innerHTML = currentLineup.forwards.map((line, lineIndex) => {
-                const lineNum = lineIndex + 1;
-                const slotHTML = line.map(slot => 
-                    createLineupSlot(`F${lineNum}-${slot.roleId}`, slot)
+            forwardLinesEl.innerHTML = Object.entries(currentLineup.forwards).map(([lineKey, lineSlots], lineIndex) => {
+                const lineNum = lineIndex + 1; // lineKey will be 'Line1', 'Line2', etc.
+                const slotHTML = Object.values(lineSlots).map(slot => 
+                    createLineupSlot(`F${lineNum}-${slot.roleId}`, slot) // Still use old ID format for DOM manipulation
                 ).join('');
 
                 return `
@@ -555,11 +593,12 @@ Goalie Default,30,LH`;
             }).join('');
         };
 
+        // UPDATED renderDefenseLines
         const renderDefenseLines = () => {
-            defenseLinesEl.innerHTML = currentLineup.defense.map((pairing, pairIndex) => {
-                const pairNum = pairIndex + 1;
-                const slotHTML = pairing.map(slot => 
-                    createLineupSlot(`D${pairNum}-${slot.roleId}`, slot)
+            defenseLinesEl.innerHTML = Object.entries(currentLineup.defense).map(([pairKey, pairSlots], pairIndex) => {
+                const pairNum = pairIndex + 1; // pairKey will be 'Pair1', 'Pair2', etc.
+                const slotHTML = Object.values(pairSlots).map(slot => 
+                    createLineupSlot(`D${pairNum}-${slot.roleId}`, slot) // Still use old ID format for DOM manipulation
                 ).join('');
 
                 return `
@@ -644,57 +683,70 @@ Goalie Default,30,LH`;
         };
         document.addEventListener('dragend', window.handleDragEnd);
 
+        // NEW HELPER FUNCTION TO GET THE OBJECT KEY
+        const getLineKey = (type, lineNum) => {
+            if (type === 'F') return `Line${lineNum}`;
+            if (type === 'D') return `Pair${lineNum}`;
+            return null;
+        };
+
+        // UPDATED getRoleName
         const getRoleName = (slotId) => {
             const match = slotId.match(/([A-Z])(\d+)-([A-Z]+)/);
             if (!match) return "Unknown Slot";
-            const [fullMatch, type, lineNum, roleId] = match;
+            const [fullMatch, type, lineNumStr, roleId] = match;
+            const lineNum = parseInt(lineNumStr);
 
             if (type === 'F') {
-                return currentLineup.forwards[parseInt(lineNum) - 1].find(s => s.roleId === roleId)?.role || `${roleId} (Forward Line ${lineNum})`;
+                const lineKey = getLineKey(type, lineNum);
+                return currentLineup.forwards[lineKey]?.[roleId]?.role || `${roleId} (Forward Line ${lineNum})`;
             } else if (type === 'D') {
-                return currentLineup.defense[parseInt(lineNum) - 1].find(s => s.roleId === roleId)?.role || `${roleId} (Defense Pair ${lineNum})`;
+                const lineKey = getLineKey(type, lineNum);
+                return currentLineup.defense[lineKey]?.[roleId]?.role || `${roleId} (Defense Pair ${lineNum})`;
             } else if (type === 'G') {
                 return currentLineup.goalie.role;
             }
             return "Unknown Slot";
         };
 
+        // UPDATED getPlayerInLineupSlot
         const getPlayerInLineupSlot = (slotId) => {
             const match = slotId.match(/([A-Z])(\d+)-([A-Z]+)/);
             if (!match) return null;
-            const [fullMatch, type, lineNum, roleId] = match;
-            const lineIndex = parseInt(lineNum) - 1;
+            const [fullMatch, type, lineNumStr, roleId] = match;
+            const lineNum = parseInt(lineNumStr);
 
             if (type === 'F') {
-                const slot = currentLineup.forwards[lineIndex]?.find(s => s.roleId === roleId);
-                return slot ? slot.player : null;
+                const lineKey = getLineKey(type, lineNum);
+                return currentLineup.forwards[lineKey]?.[roleId]?.player || null;
             } else if (type === 'D') {
-                const slot = currentLineup.defense[lineIndex]?.find(s => s.roleId === roleId);
-                return slot ? slot.player : null;
+                const lineKey = getLineKey(type, lineNum);
+                return currentLineup.defense[lineKey]?.[roleId]?.player || null;
             } else if (type === 'G') {
                 return currentLineup.goalie.player;
             }
             return null;
         };
 
+        // UPDATED removePlayer
         const removePlayer = (playerId, sourceId) => {
             if (sourceId === 'roster') {
                 availableRoster = availableRoster.filter(p => p.id !== playerId);
             } else {
                 const match = sourceId.match(/([A-Z])(\d+)-([A-Z]+)/);
                 if (!match) return;
-                const [fullMatch, type, lineNum, roleId] = match;
-                const lineIndex = parseInt(lineNum) - 1;
+                const [fullMatch, type, lineNumStr, roleId] = match;
+                const lineNum = parseInt(lineNumStr);
 
                 if (type === 'F') {
-                    const roleIndex = currentLineup.forwards[lineIndex].findIndex(s => s.roleId === roleId);
-                    if (roleIndex !== -1) {
-                        currentLineup.forwards[lineIndex][roleIndex].player = null;
+                    const lineKey = getLineKey(type, lineNum);
+                    if (currentLineup.forwards[lineKey] && currentLineup.forwards[lineKey][roleId]) {
+                        currentLineup.forwards[lineKey][roleId].player = null;
                     }
                 } else if (type === 'D') {
-                    const roleIndex = currentLineup.defense[lineIndex].findIndex(s => s.roleId === roleId);
-                    if (roleIndex !== -1) {
-                        currentLineup.defense[lineIndex][roleIndex].player = null;
+                    const lineKey = getLineKey(type, lineNum);
+                    if (currentLineup.defense[lineKey] && currentLineup.defense[lineKey][roleId]) {
+                        currentLineup.defense[lineKey][roleId].player = null;
                     }
                 } else if (type === 'G') {
                     currentLineup.goalie.player = null;
@@ -709,21 +761,22 @@ Goalie Default,30,LH`;
             }
         };
 
+        // UPDATED placePlayerInLineupSlot
         const placePlayerInLineupSlot = (slotId, player) => {
             const match = slotId.match(/([A-Z])(\d+)-([A-Z]+)/);
             if (!match) return;
-            const [fullMatch, type, lineNum, roleId] = match;
-            const lineIndex = parseInt(lineNum) - 1;
+            const [fullMatch, type, lineNumStr, roleId] = match;
+            const lineNum = parseInt(lineNumStr);
 
             if (type === 'F') {
-                const roleIndex = currentLineup.forwards[lineIndex].findIndex(s => s.roleId === roleId);
-                if (roleIndex !== -1) {
-                    currentLineup.forwards[lineIndex][roleIndex].player = player;
+                const lineKey = getLineKey(type, lineNum);
+                if (currentLineup.forwards[lineKey] && currentLineup.forwards[lineKey][roleId]) {
+                    currentLineup.forwards[lineKey][roleId].player = player;
                 }
             } else if (type === 'D') {
-                const roleIndex = currentLineup.defense[lineIndex].findIndex(s => s.roleId === roleId);
-                if (roleIndex !== -1) {
-                    currentLineup.defense[lineIndex][roleIndex].player = player;
+                const lineKey = getLineKey(type, lineNum);
+                if (currentLineup.defense[lineKey] && currentLineup.defense[lineKey][roleId]) {
+                    currentLineup.defense[lineKey][roleId].player = player;
                 }
             } else if (type === 'G') {
                 currentLineup.goalie.player = player;
